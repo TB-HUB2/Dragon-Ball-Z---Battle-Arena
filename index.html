@@ -277,6 +277,68 @@
   #result-screen h2 { font-size: 1.4rem; margin-bottom: 10px; text-shadow: 0 0 20px currentColor; }
   #result-screen p { font-size: 0.6rem; color: #aaa; margin-bottom: 30px; }
   .enemy-fighter { transform: scaleX(-1); }
+
+  /* === MOBILE === */
+  @media (max-width: 768px) {
+    body { overflow: auto; }
+
+    /* Title */
+    #title-screen h1 { font-size: 1.3rem; }
+    #title-screen h2 { font-size: 0.7rem; margin-bottom: 25px; }
+    .start-btn { font-size: 0.8rem; padding: 12px 30px; }
+
+    /* Select */
+    #select-screen {
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 15px 10px 40px;
+    }
+    #select-screen h2 { font-size: 0.8rem; margin: 10px 0 15px; }
+    .char-grid { gap: 10px; }
+    .char-card { width: 130px; padding: 10px; }
+    .char-card .char-sprite-box { width: 70px; height: 80px; }
+    .char-card .char-sprite-box svg { width: 60px; }
+    .char-card .name { font-size: 0.5rem; }
+    .char-card .stats { font-size: 0.35rem; }
+    .fight-btn { font-size: 0.7rem; padding: 10px 25px; margin: 20px 0 30px; }
+
+    /* Battle */
+    .hp-box { min-width: 140px; padding: 8px 10px; }
+    .hp-box.enemy { top: 10px; left: 10px; }
+    .hp-box.player { bottom: 130px; right: 10px; }
+    .hp-box .fighter-name { font-size: 0.45rem; }
+    .hp-box .hp-bar-container { height: 10px; }
+    .hp-box .hp-text { font-size: 0.35rem; }
+    .hp-box .level { font-size: 0.35rem; }
+
+    .fighter svg { width: 70px; }
+    .fighter.player-fighter { bottom: 24%; left: 5%; }
+    .fighter.enemy-fighter { top: 10%; right: 5%; }
+
+    .battle-menu { height: 120px; flex-direction: column; }
+    .message-box { padding: 8px 12px; font-size: 0.45rem; min-height: 35px; flex: 0; }
+    .action-menu {
+      width: 100%; border-left: none; border-top: 2px solid #555;
+      grid-template-columns: 1fr 1fr; gap: 3px; padding: 5px;
+    }
+    .action-btn { font-size: 0.4rem; padding: 6px 4px; }
+    .action-btn .atk-type { font-size: 0.3rem; margin-top: 2px; }
+
+    /* Result */
+    #result-screen .result-sprite svg { width: 100px; }
+    #result-screen h2 { font-size: 1rem; }
+    #result-screen p { font-size: 0.45rem; }
+  }
+
+  @media (max-width: 380px) {
+    .char-card { width: 110px; padding: 8px; }
+    .char-card .char-sprite-box { width: 60px; height: 70px; }
+    .char-card .char-sprite-box svg { width: 50px; }
+    .char-grid { gap: 8px; }
+    .hp-box { min-width: 120px; padding: 6px 8px; }
+    .fighter svg { width: 55px; }
+    .battle-menu { height: 110px; }
+    .action-btn { font-size: 0.35rem; padding: 5px 3px; }
+  }
 </style>
 </head>
 <body>

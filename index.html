@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dragon Ball Z - Kampfarena</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #111;
+    color: #fff;
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+  .screen.active { display: flex; }
+
+  /* === TITLE === */
+  #title-screen {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #1a0a2e 0%, #0d0d0d 100%);
+  }
+  #title-screen h1 {
+    font-size: 2.2rem;
+    color: #ff8c00;
+    text-shadow: 0 0 20px #ff4500, 0 0 40px #ff4500;
+    margin-bottom: 10px;
+    text-align: center;
+    line-height: 1.5;
+  }
+  #title-screen h2 {
+    font-size: 1rem;
+    color: #ffd700;
+    margin-bottom: 40px;
+    text-shadow: 0 0 10px #ffd700;
+  }
+  .start-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 1rem;
+    padding: 15px 40px;
+    background: linear-gradient(180deg, #ff8c00, #ff4500);
+    color: #fff;
+    border: 3px solid #ffd700;
+    border-radius: 8px;
+    cursor: pointer;
+    text-shadow: 1px 1px 2px #000;
+    animation: pulse 1.5s infinite;
+  }
+  .start-btn:hover { transform: scale(1.05); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 10px #ff4500; }
+    50% { box-shadow: 0 0 30px #ff4500, 0 0 60px #ff8c00; }
+  }
+
+  /* === SELECT === */
+  #select-screen {
+    flex-direction: column;
+    align-items: center;
+    background: radial-gradient(ellipse at center, #0a1628 0%, #0d0d0d 100%);
+    padding: 20px;
+    overflow-y: auto;
+  }
+  #select-screen h2 {
+    font-size: 1.2rem;
+    color: #00bfff;
+    margin: 20px 0 30px;
+    text-shadow: 0 0 10px #00bfff;
+  }
+  .char-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    max-width: 1000px;
+  }
+  .char-card {
+    width: 165px;
+    padding: 15px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid #333;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .char-card:hover {
+    border-color: #ffd700;
+    background: rgba(255,215,0,0.1);
+    transform: translateY(-5px);
+  }
+  .char-card.selected {
+    border-color: #00ff00;
+    background: rgba(0,255,0,0.1);
+    box-shadow: 0 0 20px rgba(0,255,0,0.3);
+  }
+  .char-card .char-sprite-box {
+    width: 100px;
+    height: 110px;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .char-card .char-sprite-box svg { width: 80px; height: auto; }
+  .char-card .name { font-size: 0.6rem; color: #ffd700; margin-bottom: 8px; }
+  .char-card .stats { font-size: 0.45rem; color: #aaa; line-height: 1.8; }
+  .fight-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.9rem;
+    padding: 12px 35px;
+    margin-top: 30px;
+    background: linear-gradient(180deg, #dc143c, #8b0000);
+    color: #fff;
+    border: 3px solid #ff4500;
+    border-radius: 8px;
+    cursor: pointer;
+    display: none;
+  }
+  .fight-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px #ff4500; }
+  .fight-btn.visible { display: block; }
+
+  /* === BATTLE === */
+  #battle-screen {
+    flex-direction: column;
+    background: linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 30%, #4a2c6e 60%, #1a3a1a 85%, #0d2d0d 100%);
+    position: relative;
+  }
+  .battle-bg {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    overflow: hidden; z-index: 0;
+  }
+  .battle-bg .mountain {
+    position: absolute; bottom: 25%; width: 0; height: 0;
+    border-left: 80px solid transparent;
+    border-right: 80px solid transparent;
+    border-bottom: 120px solid #1a2a1a;
+    opacity: 0.3;
+  }
+  .battle-bg .mountain:nth-child(1) { left: 5%; border-bottom-width: 150px; border-left-width: 100px; border-right-width: 100px; }
+  .battle-bg .mountain:nth-child(2) { left: 25%; border-bottom-width: 100px; }
+  .battle-bg .mountain:nth-child(3) { right: 15%; border-bottom-width: 130px; border-left-width: 90px; border-right-width: 90px; }
+  .battle-bg .ground {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 25%;
+    background: linear-gradient(180deg, #2a4a2a, #1a3a1a);
+    border-top: 2px solid #3a5a3a;
+  }
+  .battle-area { flex: 1; position: relative; z-index: 1; }
+
+  .hp-box {
+    position: absolute;
+    background: rgba(0,0,0,0.85);
+    border: 3px solid #555;
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 260px;
+  }
+  .hp-box.enemy { top: 30px; left: 30px; }
+  .hp-box.player { bottom: 160px; right: 30px; }
+  .hp-box .fighter-name { font-size: 0.7rem; margin-bottom: 6px; }
+  .hp-box .hp-bar-container {
+    background: #333; border-radius: 4px; height: 14px; overflow: hidden; position: relative;
+  }
+  .hp-box .hp-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .hp-bar.high { background: linear-gradient(90deg, #00cc00, #00ff00); }
+  .hp-bar.mid { background: linear-gradient(90deg, #cc8800, #ffaa00); }
+  .hp-bar.low { background: linear-gradient(90deg, #cc0000, #ff2200); }
+  .hp-box .hp-text { font-size: 0.5rem; text-align: right; margin-top: 4px; color: #aaa; }
+  .hp-box .level { font-size: 0.5rem; color: #aaa; float: right; }
+
+  .fighter {
+    position: absolute;
+    z-index: 5;
+    transition: transform 0.1s;
+  }
+  .fighter svg { width: 120px; height: auto; }
+  .fighter.player-fighter { bottom: 22%; left: 10%; }
+  .fighter.enemy-fighter { top: 12%; right: 12%; }
+
+  @keyframes playerAttack {
+    0% { transform: translateX(0); }
+    30% { transform: translateX(200px) scale(1.15); }
+    50% { transform: translateX(200px) scale(1.15); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes enemyAttack {
+    0% { transform: translateX(0) scaleX(-1); }
+    30% { transform: translateX(-200px) scaleX(-1) scale(1.15); }
+    50% { transform: translateX(-200px) scaleX(-1) scale(1.15); }
+    100% { transform: translateX(0) scaleX(-1); }
+  }
+  @keyframes takeDamage {
+    0% { filter: brightness(1); transform: translateX(0); }
+    20% { filter: brightness(3) hue-rotate(90deg); transform: translateX(10px); }
+    40% { filter: brightness(1); transform: translateX(-10px); }
+    60% { filter: brightness(3) hue-rotate(90deg); transform: translateX(10px); }
+    80% { filter: brightness(1); transform: translateX(-10px); }
+    100% { filter: brightness(1); transform: translateX(0); }
+  }
+  @keyframes faint {
+    0% { opacity: 1; transform: translateY(0) rotate(0); }
+    100% { opacity: 0; transform: translateY(50px) rotate(20deg); }
+  }
+  .fighter.attacking-player { animation: playerAttack 0.6s ease-in-out; }
+  .fighter.attacking-enemy { animation: enemyAttack 0.6s ease-in-out; }
+  .fighter.damaged { animation: takeDamage 0.5s ease; }
+  .fighter.fainted { animation: faint 0.8s ease forwards; }
+
+  #fxCanvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 15; pointer-events: none;
+  }
+
+  @keyframes charging {
+    0%, 100% { filter: brightness(1.2); transform: translateY(0); }
+    25% { filter: brightness(1.5) saturate(1.4); transform: translateY(-2px); }
+    50% { filter: brightness(1.8) saturate(1.6); transform: translateY(1px); }
+    75% { filter: brightness(1.5) saturate(1.4); transform: translateY(-1px); }
+  }
+  .fighter.charging { animation: charging 0.3s ease infinite; }
+
+  @keyframes teleportOut {
+    0% { opacity: 1; filter: brightness(1); }
+    50% { opacity: 0.3; filter: brightness(3) hue-rotate(200deg); }
+    100% { opacity: 0; }
+  }
+  @keyframes teleportIn {
+    0% { opacity: 0; }
+    50% { opacity: 0.3; filter: brightness(3) hue-rotate(200deg); }
+    100% { opacity: 1; filter: brightness(1); }
+  }
+  .fighter.teleport-out { animation: teleportOut 0.3s ease forwards; }
+  .fighter.teleport-in { animation: teleportIn 0.3s ease forwards; }
+
+  .screen-flash {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 20; pointer-events: none; opacity: 0;
+  }
+  .screen-flash.active { animation: flashAnim 0.3s ease; }
+  @keyframes flashAnim { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+
+  .battle-menu {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 150px;
+    background: rgba(0,0,0,0.92); border-top: 3px solid #555; z-index: 10; display: flex;
+  }
+  .message-box {
+    flex: 1; padding: 15px 20px; font-size: 0.65rem; line-height: 1.8;
+    display: flex; align-items: center;
+  }
+  .message-box .typing-text { overflow: hidden; white-space: pre-wrap; }
+  .action-menu {
+    width: 300px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    padding: 10px; border-left: 3px solid #555;
+  }
+  .action-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 0.55rem; padding: 8px;
+    background: rgba(255,255,255,0.05); color: #fff; border: 2px solid #444;
+    border-radius: 6px; cursor: pointer; transition: all 0.15s; text-align: left;
+  }
+  .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); border-color: #ffd700; }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .action-btn .atk-type { display: block; font-size: 0.4rem; color: #888; margin-top: 3px; }
+
+  /* === RESULT === */
+  #result-screen {
+    flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #1a0a2e 0%, #0d0d0d 100%);
+  }
+  #result-screen .result-sprite { margin-bottom: 20px; }
+  #result-screen .result-sprite svg { width: 140px; height: auto; }
+  #result-screen h2 { font-size: 1.4rem; margin-bottom: 10px; text-shadow: 0 0 20px currentColor; }
+  #result-screen p { font-size: 0.6rem; color: #aaa; margin-bottom: 30px; }
+  .enemy-fighter { transform: scaleX(-1); }
+</style>
+</head>
+<body>
+
+<div id="title-screen" class="screen active">
+  <h1>DRAGON BALL Z</h1>
+  <h2>Kampfarena</h2>
+  <button class="start-btn" onclick="showScreen('select-screen')">START</button>
+</div>
+
+<div id="select-screen" class="screen">
+  <h2>Waehle deinen Kaempfer!</h2>
+  <div class="char-grid" id="charGrid"></div>
+  <button class="fight-btn" id="fightBtn" onclick="startBattle()">KAMPF!</button>
+</div>
+
+<div id="battle-screen" class="screen">
+  <div class="battle-bg">
+    <div class="mountain"></div><div class="mountain"></div><div class="mountain"></div>
+    <div class="ground"></div>
+  </div>
+  <div class="battle-area">
+    <div class="hp-box enemy">
+      <span class="fighter-name" id="enemyName">???</span>
+      <span class="level" id="enemyLevel">Lv 50</span>
+      <div class="hp-bar-container"><div class="hp-bar high" id="enemyHpBar" style="width:100%"></div></div>
+      <div class="hp-text" id="enemyHpText">??? / ???</div>
+    </div>
+    <div class="hp-box player">
+      <span class="fighter-name" id="playerName">???</span>
+      <span class="level" id="playerLevel">Lv 50</span>
+      <div class="hp-bar-container"><div class="hp-bar high" id="playerHpBar" style="width:100%"></div></div>
+      <div class="hp-text" id="playerHpText">??? / ???</div>
+    </div>
+    <div class="fighter player-fighter" id="playerFighter"></div>
+    <div class="fighter enemy-fighter" id="enemyFighter"></div>
+    <div class="screen-flash" id="screenFlash"></div>
+    <canvas id="fxCanvas"></canvas>
+  </div>
+  <div class="battle-menu">
+    <div class="message-box"><div class="typing-text" id="messageText"></div></div>
+    <div class="action-menu" id="actionMenu"></div>
+  </div>
+</div>
+
+<div id="result-screen" class="screen">
+  <div class="result-sprite" id="resultSprite"></div>
+  <h2 id="resultTitle"></h2>
+  <p id="resultText"></p>
+  <button class="start-btn" onclick="resetGame()">NOCHMAL!</button>
+</div>
+
+<script>
+// === SVG SPRITES ===
+const sprites = {
+  goku: `<svg viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Hair back spikes - wilder -->
+    <path d="M16,28 L4,4 L18,22 L8,-2 L22,16 L18,-4 L28,14 L26,-2 L32,10 L34,-6 L38,10 L42,-2 L44,14 L50,-4 L48,16 L56,-2 L50,22 L58,4 L52,28" fill="#1a1a1a"/>
+    <path d="M14,32 L2,16 L12,28 L0,20 L10,34" fill="#1a1a1a"/>
+    <path d="M52,32 L62,16 L54,28 L64,20 L56,34" fill="#1a1a1a"/>
+    <!-- Head -->
+    <ellipse cx="33" cy="36" rx="16" ry="16" fill="#f0d498"/>
+    <!-- Hair front -->
+    <path d="M15,32 L18,20 L22,28 L24,14 L28,26 L33,10 L38,26 L42,14 L46,28 L48,20 L51,32 Q33,24 15,32Z" fill="#1a1a1a"/>
+    <!-- Ears -->
+    <ellipse cx="17" cy="38" rx="3" ry="4" fill="#d4a86a"/>
+    <ellipse cx="49" cy="38" rx="3" ry="4" fill="#d4a86a"/>
+    <!-- Angry eyebrows - sharp V -->
+    <path d="M20,30 L29,33" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M37,33 L46,30" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Eyes - intense, determined -->
+    <ellipse cx="26" cy="36" rx="4.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="40" cy="36" rx="4.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="27.5" cy="36" rx="2.5" ry="2.8" fill="#111"/>
+    <ellipse cx="41.5" cy="36" rx="2.5" ry="2.8" fill="#111"/>
+    <circle cx="28.5" cy="35" r="1" fill="#fff"/>
+    <circle cx="42.5" cy="35" r="1" fill="#fff"/>
+    <!-- Nose -->
+    <path d="M32,39 L33,42 L31,42" stroke="#b08050" stroke-width="0.8" fill="none"/>
+    <!-- Mouth - battle grimace, teeth showing -->
+    <path d="M27,46 L39,46" stroke="#8b4513" stroke-width="1.5"/>
+    <path d="M28,44 L38,44 L38,47 L28,47Z" fill="#4a1a0a"/>
+    <rect x="29" y="44" width="8" height="1.5" rx="0.5" fill="#fff"/>
+    <!-- Neck muscular -->
+    <path d="M26,50 L40,50 L42,56 L24,56Z" fill="#f0d498"/>
+    <!-- Blue undershirt -->
+    <path d="M22,54 L44,54 L44,60 Q33,62 22,60Z" fill="#1944aa"/>
+    <!-- Orange Gi body -->
+    <path d="M18,58 L48,58 L48,86 Q33,88 18,86Z" fill="#ee6600"/>
+    <!-- Gi overlap -->
+    <path d="M24,58 L33,70 L42,58" stroke="#aa3300" stroke-width="1.2" fill="none"/>
+    <path d="M24,58 L33,70 L33,80" stroke="#aa3300" stroke-width="0.8" fill="none"/>
+    <!-- Kanji -->
+    <circle cx="36" cy="66" r="5" fill="#cc4400" opacity="0.4"/>
+    <text x="33.5" y="69" font-size="8" fill="#1a1a1a" font-family="serif" font-weight="bold">亀</text>
+    <!-- Belt -->
+    <rect x="16" y="78" width="34" height="5" rx="2" fill="#1944aa"/>
+    <path d="M30,83 L28,92 M36,83 L34,92" stroke="#1944aa" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Arms - muscular -->
+    <path d="M18,58 L6,60 L4,76 L12,78 L14,64 L18,78" fill="#ee6600"/>
+    <path d="M48,58 L60,60 L62,76 L54,78 L52,64 L48,78" fill="#ee6600"/>
+    <!-- Wristbands -->
+    <rect x="2" y="74" width="12" height="5" rx="2" fill="#1944aa"/>
+    <rect x="52" y="74" width="12" height="5" rx="2" fill="#1944aa"/>
+    <!-- Fists clenched -->
+    <path d="M4,79 L14,79 L14,87 Q9,89 4,87Z" fill="#f0d498"/>
+    <path d="M52,79 L62,79 L62,87 Q57,89 52,87Z" fill="#f0d498"/>
+    <path d="M5,82 L6,84 M8,82 L9,85 M11,82 L12,84" stroke="#b08050" stroke-width="0.6"/>
+    <path d="M53,82 L54,84 M57,82 L57,85 M60,82 L61,84" stroke="#b08050" stroke-width="0.6"/>
+    <!-- Legs -->
+    <rect x="22" y="86" width="11" height="20" rx="4" fill="#ee6600"/>
+    <rect x="35" y="86" width="11" height="20" rx="4" fill="#ee6600"/>
+    <!-- Boots -->
+    <path d="M20,102 L20,114 Q26,116 34,114 L34,102Z" fill="#1d44aa"/>
+    <path d="M34,102 L34,114 Q40,116 48,114 L48,102Z" fill="#1d44aa"/>
+    <rect x="20" y="102" width="14" height="3" rx="1" fill="#ffcc00"/>
+    <rect x="34" y="102" width="14" height="3" rx="1" fill="#ffcc00"/>
+  </svg>`,
+
+  vegeta: `<svg viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Hair - tall flame, wilder spikes -->
+    <path d="M20,24 L10,0 L18,18 L14,-6 L24,14 L26,-8 L30,8 L34,-10 L38,8 L42,-8 L44,14 L50,-6 L50,18 L56,0 L48,24" fill="#1a1a1a"/>
+    <path d="M16,32 L8,18 L14,30" fill="#1a1a1a"/>
+    <path d="M52,32 L58,18 L54,30" fill="#1a1a1a"/>
+    <!-- Head -->
+    <ellipse cx="34" cy="36" rx="16" ry="15" fill="#f0d498"/>
+    <!-- Widow's peak - sharp -->
+    <path d="M18,26 L26,30 L34,18 L42,30 L50,26 Q34,34 18,26Z" fill="#1a1a1a"/>
+    <!-- Ears -->
+    <ellipse cx="18" cy="38" rx="3" ry="4" fill="#d4a86a"/>
+    <ellipse cx="50" cy="38" rx="3" ry="4" fill="#d4a86a"/>
+    <!-- VERY angry eyebrows - steep V angle -->
+    <path d="M20,28 L30,34" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M38,34 L48,28" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+    <!-- Eyes - narrow slits, furious -->
+    <path d="M24,35 L32,35 L32,38 L24,38Z" fill="#fff" rx="1"/>
+    <path d="M36,35 L44,38 L44,35 L36,38Z" fill="#fff" rx="1"/>
+    <ellipse cx="28" cy="36.5" rx="2" ry="2" fill="#111"/>
+    <ellipse cx="40" cy="36.5" rx="2" ry="2" fill="#111"/>
+    <circle cx="29" cy="36" r="0.7" fill="#fff"/>
+    <circle cx="41" cy="36" r="0.7" fill="#fff"/>
+    <!-- Nose -->
+    <path d="M33,39 L34,42 L32,42" stroke="#b08050" stroke-width="0.8" fill="none"/>
+    <!-- Snarl - teeth bared -->
+    <path d="M28,45 L40,45" stroke="#6b3a1a" stroke-width="1.5"/>
+    <path d="M29,43 L39,43 L39,46 L29,46Z" fill="#3a1a0a"/>
+    <rect x="30" y="43" width="2" height="1.5" fill="#fff"/>
+    <rect x="33" y="43" width="2" height="1.5" fill="#fff"/>
+    <rect x="36" y="43" width="2" height="1.5" fill="#fff"/>
+    <!-- Veins on temple -->
+    <path d="M20,32 L18,30 L17,32" stroke="#c89870" stroke-width="0.5" fill="none"/>
+    <path d="M48,32 L50,30 L51,32" stroke="#c89870" stroke-width="0.5" fill="none"/>
+    <!-- Neck muscular -->
+    <path d="M26,50 L42,50 L44,56 L24,56Z" fill="#f0d498"/>
+    <!-- Shoulder pads -->
+    <ellipse cx="12" cy="60" rx="12" ry="7" fill="#e8e0d0" stroke="#a8a088" stroke-width="0.8"/>
+    <ellipse cx="56" cy="60" rx="12" ry="7" fill="#e8e0d0" stroke="#a8a088" stroke-width="0.8"/>
+    <!-- Body suit -->
+    <path d="M18,56 L50,56 L50,88 Q34,90 18,88Z" fill="#1e3d99"/>
+    <!-- Chest plate -->
+    <path d="M20,56 Q34,70 48,56 L48,80 Q34,76 20,80Z" fill="#e8e0d0" stroke="#a8a088" stroke-width="0.8"/>
+    <path d="M34,58 L34,68" stroke="#b8b098" stroke-width="0.5"/>
+    <path d="M26,60 Q34,64 42,60" stroke="#b8b098" stroke-width="0.5" fill="none"/>
+    <path d="M26,72 Q34,76 42,72" stroke="#a8a088" stroke-width="0.6" fill="none"/>
+    <!-- Arms -->
+    <path d="M18,56 L4,60 L2,76 L10,78 L14,64 L18,76" fill="#1e3d99"/>
+    <path d="M50,56 L64,60 L66,76 L58,78 L54,64 L50,76" fill="#1e3d99"/>
+    <!-- Gloves -->
+    <rect x="0" y="74" width="14" height="10" rx="3" fill="#f0ece0" stroke="#ccc" stroke-width="0.5"/>
+    <rect x="54" y="74" width="14" height="10" rx="3" fill="#f0ece0" stroke="#ccc" stroke-width="0.5"/>
+    <rect x="0" y="74" width="14" height="3" rx="1" fill="#d8d0c0"/>
+    <rect x="54" y="74" width="14" height="3" rx="1" fill="#d8d0c0"/>
+    <!-- Clenched fists -->
+    <path d="M1,84 L13,84 L13,90 Q7,92 1,90Z" fill="#f0ece0"/>
+    <path d="M55,84 L67,84 L67,90 Q61,92 55,90Z" fill="#f0ece0"/>
+    <path d="M3,86 L5,88 M7,86 L7,89 M10,86 L11,88" stroke="#bbb" stroke-width="0.5"/>
+    <path d="M57,86 L58,88 M61,86 L61,89 M64,86 L65,88" stroke="#bbb" stroke-width="0.5"/>
+    <!-- Legs -->
+    <rect x="22" y="88" width="10" height="18" rx="4" fill="#1e3d99"/>
+    <rect x="36" y="88" width="10" height="18" rx="4" fill="#1e3d99"/>
+    <!-- Boots -->
+    <path d="M20,102 L20,116 Q28,118 34,116 L34,102Z" fill="#f0ece0" stroke="#ccc" stroke-width="0.5"/>
+    <path d="M34,102 L34,116 Q42,118 48,116 L48,102Z" fill="#f0ece0" stroke="#ccc" stroke-width="0.5"/>
+    <rect x="20" y="102" width="14" height="3" rx="1" fill="#d4b440"/>
+    <rect x="34" y="102" width="14" height="3" rx="1" fill="#d4b440"/>
+  </svg>`,
+
+  piccolo: `<svg viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Antennae - alert, tense -->
+    <path d="M34,12 Q28,2 24,-2" stroke="#3a7830" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M38,12 Q44,2 48,-2" stroke="#3a7830" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="23" cy="-2" r="2.5" fill="#4a9840"/>
+    <circle cx="49" cy="-2" r="2.5" fill="#4a9840"/>
+    <!-- Turban -->
+    <ellipse cx="36" cy="16" rx="20" ry="10" fill="#ede8dd"/>
+    <ellipse cx="36" cy="14" rx="16" ry="9" fill="#f0ece0"/>
+    <ellipse cx="36" cy="12" rx="12" ry="7" fill="#e8e0d4"/>
+    <path d="M20,16 Q36,10 52,16" stroke="#c0b8a8" stroke-width="0.6" fill="none"/>
+    <!-- Head -->
+    <ellipse cx="36" cy="34" rx="16" ry="16" fill="#3d8832"/>
+    <!-- Pointed ears - larger -->
+    <path d="M18,30 L4,20 L14,34" fill="#3a7830"/>
+    <path d="M54,30 L68,20 L58,34" fill="#3a7830"/>
+    <path d="M18,30 L6,22 L14,32" fill="#2a6020" opacity="0.5"/>
+    <path d="M54,30 L66,22 L58,32" fill="#2a6020" opacity="0.5"/>
+    <!-- Pink patches -->
+    <ellipse cx="20" cy="28" rx="5" ry="3" fill="#c85a78" opacity="0.7"/>
+    <ellipse cx="52" cy="28" rx="5" ry="3" fill="#c85a78" opacity="0.7"/>
+    <!-- Heavy brows - angry -->
+    <path d="M22,29 L32,32" stroke="#1a4a10" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M40,32 L50,29" stroke="#1a4a10" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Eyes - fierce, piercing -->
+    <ellipse cx="28" cy="34" rx="4.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="44" cy="34" rx="4.5" ry="3.5" fill="#fff"/>
+    <ellipse cx="29" cy="34" rx="2.5" ry="2.8" fill="#111"/>
+    <ellipse cx="45" cy="34" rx="2.5" ry="2.8" fill="#111"/>
+    <circle cx="30" cy="33" r="0.8" fill="#fff"/>
+    <circle cx="46" cy="33" r="0.8" fill="#fff"/>
+    <!-- Nose -->
+    <path d="M35,37 L36,41 L34,41" stroke="#1a5a10" stroke-width="0.8" fill="none"/>
+    <!-- Snarl with fangs -->
+    <path d="M28,44 L44,44" stroke="#1a4a10" stroke-width="1.8"/>
+    <path d="M29,42 L43,42 L43,46 L29,46Z" fill="#0a2a08"/>
+    <polygon points="31,42 32,45 33,42" fill="#ddd"/>
+    <polygon points="39,42 40,45 41,42" fill="#ddd"/>
+    <!-- Neck -->
+    <path d="M28,48 L44,48 L46,56 L26,56Z" fill="#3d8832"/>
+    <!-- Cape shoulders -->
+    <path d="M0,56 L18,54 L18,92 L0,88Z" fill="#ede8dd" stroke="#b0a898" stroke-width="0.5"/>
+    <path d="M54,54 L72,56 L72,88 L54,92Z" fill="#ede8dd" stroke="#b0a898" stroke-width="0.5"/>
+    <path d="M18,54 L54,54 L54,60 Q36,62 18,60Z" fill="#ede8dd" stroke="#b0a898" stroke-width="0.5"/>
+    <!-- Weighted pads -->
+    <rect x="2" y="56" width="16" height="7" rx="3" fill="#c0b8a8" stroke="#a09888" stroke-width="0.5"/>
+    <rect x="54" y="56" width="16" height="7" rx="3" fill="#c0b8a8" stroke="#a09888" stroke-width="0.5"/>
+    <!-- Purple gi -->
+    <path d="M18,56 L54,56 L54,90 Q36,92 18,90Z" fill="#5c3388"/>
+    <path d="M36,58 L36,74" stroke="#5a2288" stroke-width="0.6" opacity="0.5"/>
+    <!-- Belt -->
+    <rect x="16" y="76" width="40" height="5" rx="2" fill="#3377bb"/>
+    <path d="M32,81 L30,92 M40,81 L38,92" stroke="#3377bb" stroke-width="2" stroke-linecap="round"/>
+    <!-- Arms -->
+    <path d="M0,64 L2,84 L10,84 L8,68" fill="#3d8832"/>
+    <path d="M72,64 L70,84 L62,84 L64,68" fill="#3d8832"/>
+    <!-- Hands - clawed -->
+    <path d="M2,84 L12,84 L12,90 Q7,93 2,90Z" fill="#3d8832"/>
+    <path d="M60,84 L70,84 L70,90 Q65,93 60,90Z" fill="#3d8832"/>
+    <path d="M3,88 L1,92 M6,89 L5,93 M9,88 L10,92" stroke="#1a5a10" stroke-width="1"/>
+    <path d="M61,88 L60,92 M64,89 L64,93 M67,88 L69,92" stroke="#1a5a10" stroke-width="1"/>
+    <!-- Legs -->
+    <rect x="24" y="90" width="10" height="18" rx="4" fill="#5c3388"/>
+    <rect x="38" y="90" width="10" height="18" rx="4" fill="#5c3388"/>
+    <!-- Shoes -->
+    <path d="M22,104 L22,116 Q29,118 36,116 L36,104Z" fill="#b89050" stroke="#906830" stroke-width="0.5"/>
+    <path d="M36,104 L36,116 Q43,118 50,116 L50,104Z" fill="#b89050" stroke="#906830" stroke-width="0.5"/>
+  </svg>`,
+
+  frieza: `<svg viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Head dome -->
+    <ellipse cx="36" cy="22" rx="18" ry="20" fill="#e4daea"/>
+    <!-- Purple dome top -->
+    <path d="M18,18 Q36,-2 54,18 Q54,8 36,0 Q18,8 18,18Z" fill="#8844aa"/>
+    <!-- Side plates -->
+    <ellipse cx="18" cy="22" rx="5" ry="8" fill="#8844aa"/>
+    <ellipse cx="54" cy="22" rx="5" ry="8" fill="#8844aa"/>
+    <!-- Bio-gem -->
+    <ellipse cx="36" cy="14" rx="3.5" ry="4" fill="#cc4499" stroke="#991166" stroke-width="0.5"/>
+    <ellipse cx="35" cy="13" rx="1.2" ry="1.5" fill="#ffaadd" opacity="0.6"/>
+    <!-- Dark face area -->
+    <path d="M24,30 Q36,26 48,30 Q48,38 36,42 Q24,38 24,30Z" fill="#2a1030"/>
+    <!-- Face -->
+    <ellipse cx="36" cy="30" rx="12" ry="10" fill="#e4daea"/>
+    <!-- Red eyes - menacing, narrow -->
+    <path d="M25,26 L35,26 L35,30 L25,30Z" fill="#fff" rx="1"/>
+    <path d="M37,26 L47,26 L47,30 L37,30Z" fill="#fff" rx="1"/>
+    <ellipse cx="30" cy="28" rx="2.5" ry="2.5" fill="#cc0000"/>
+    <ellipse cx="42" cy="28" rx="2.5" ry="2.5" fill="#cc0000"/>
+    <circle cx="30" cy="28" r="1.2" fill="#440000"/>
+    <circle cx="42" cy="28" r="1.2" fill="#440000"/>
+    <circle cx="31" cy="27" r="0.6" fill="#ff6666"/>
+    <circle cx="43" cy="27" r="0.6" fill="#ff6666"/>
+    <!-- Brow lines - sinister -->
+    <path d="M24,24 L33,27" stroke="#8a5080" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M39,27 L48,24" stroke="#8a5080" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Nose marks -->
+    <circle cx="35" cy="32" r="0.6" fill="#b090c0"/>
+    <circle cx="37" cy="32" r="0.6" fill="#b090c0"/>
+    <!-- Evil grin -->
+    <path d="M28,36 Q36,42 44,36" stroke="#4a1040" stroke-width="1.5" fill="none"/>
+    <path d="M30,36 Q36,40 42,36" fill="#2a1030" opacity="0.5"/>
+    <path d="M26,38 Q36,44 46,38" stroke="#1a0820" stroke-width="0.8" fill="none"/>
+    <!-- Neck -->
+    <path d="M28,40 L44,40 L46,46 L26,46Z" fill="#e4daea"/>
+    <!-- Body -->
+    <path d="M18,46 L54,46 L52,86 Q36,88 20,86Z" fill="#e4daea"/>
+    <!-- Purple chest segments -->
+    <path d="M22,48 Q36,56 50,48 L50,52 Q36,58 22,52Z" fill="#8844aa" opacity="0.5"/>
+    <path d="M36,46 L36,64" stroke="#c8b0d0" stroke-width="0.5"/>
+    <path d="M24,62 Q36,66 48,62" stroke="#c0a8c8" stroke-width="0.8" fill="none"/>
+    <path d="M26,68 Q36,72 46,68" stroke="#c0a8c8" stroke-width="0.8" fill="none"/>
+    <path d="M28,74 Q36,76 44,74" stroke="#c0a8c8" stroke-width="0.8" fill="none"/>
+    <!-- Shoulder gems -->
+    <ellipse cx="20" cy="50" rx="3.5" ry="3.5" fill="#cc4499"/>
+    <ellipse cx="52" cy="50" rx="3.5" ry="3.5" fill="#cc4499"/>
+    <!-- Arms -->
+    <path d="M18,48 L4,52 L2,72 L10,74 L12,58 L18,68" fill="#e4daea"/>
+    <path d="M54,48 L68,52 L70,72 L62,74 L60,58 L54,68" fill="#e4daea"/>
+    <!-- Arm bands -->
+    <rect x="2" y="58" width="12" height="4" rx="2" fill="#8844aa"/>
+    <rect x="58" y="58" width="12" height="4" rx="2" fill="#8844aa"/>
+    <!-- Hands - pointed -->
+    <path d="M2,74 L12,74 L12,80 Q7,83 2,80Z" fill="#e4daea"/>
+    <path d="M60,74 L70,74 L70,80 Q65,83 60,80Z" fill="#e4daea"/>
+    <path d="M3,78 L1,82 M6,79 L5,84 M9,78 L10,83" stroke="#b090c0" stroke-width="0.8"/>
+    <path d="M61,78 L60,82 M64,79 L64,84 M67,78 L69,83" stroke="#b090c0" stroke-width="0.8"/>
+    <!-- Legs -->
+    <rect x="24" y="84" width="10" height="18" rx="4" fill="#e4daea"/>
+    <rect x="38" y="84" width="10" height="18" rx="4" fill="#e4daea"/>
+    <!-- Shin plates -->
+    <rect x="24" y="90" width="10" height="6" rx="2" fill="#8844aa" opacity="0.6"/>
+    <rect x="38" y="90" width="10" height="6" rx="2" fill="#8844aa" opacity="0.6"/>
+    <!-- Feet -->
+    <ellipse cx="29" cy="104" rx="7" ry="4" fill="#e4daea"/>
+    <ellipse cx="43" cy="104" rx="7" ry="4" fill="#e4daea"/>
+    <!-- Tail -->
+    <path d="M50,78 Q64,84 68,72 Q72,60 68,52 Q66,46 62,48 Q60,50 62,54" stroke="#d0c0d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M62,54 Q60,50 62,48" stroke="#8855aa" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+
+  cell: `<svg viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Crown - sharper -->
+    <path d="M26,18 L14,0 L22,14 L18,-6 L28,10 L34,-8 L40,10 L46,-6 L42,14 L50,0 L42,18" fill="#1a5a1a" stroke="#0a3a0a" stroke-width="0.5"/>
+    <path d="M24,16 L18,2 L28,12 L34,-4 L40,12 L46,2 L44,16" fill="#2a7a2a" opacity="0.5"/>
+    <!-- Wings - darker, more angular -->
+    <path d="M14,24 L2,8 L4,16 L-2,10 L2,22 L0,18 L6,28 L12,30" fill="#10102a"/>
+    <path d="M54,24 L66,8 L64,16 L70,10 L66,22 L68,18 L62,28 L56,30" fill="#10102a"/>
+    <path d="M12,28 L4,14 M10,26 L6,18" stroke="#1a1a38" stroke-width="0.6"/>
+    <path d="M56,28 L64,14 M58,26 L62,18" stroke="#1a1a38" stroke-width="0.6"/>
+    <!-- Head -->
+    <ellipse cx="34" cy="30" rx="18" ry="14" fill="#3d8832"/>
+    <!-- Exoskeleton mask -->
+    <path d="M18,26 Q34,18 50,26 Q52,34 46,38 Q34,44 22,38 Q16,34 18,26Z" fill="#0e2010"/>
+    <!-- Jaw -->
+    <path d="M22,36 Q34,44 46,36 Q44,40 34,44 Q24,40 22,36Z" fill="#b07840"/>
+    <!-- Eyes - large, menacing magenta -->
+    <ellipse cx="27" cy="30" rx="5.5" ry="4.5" fill="#fff"/>
+    <ellipse cx="41" cy="30" rx="5.5" ry="4.5" fill="#fff"/>
+    <ellipse cx="27.5" cy="30" rx="4" ry="4" fill="#cc4499"/>
+    <ellipse cx="41.5" cy="30" rx="4" ry="4" fill="#cc4499"/>
+    <circle cx="28.5" cy="29" r="1.3" fill="#ffaadd" opacity="0.5"/>
+    <circle cx="42.5" cy="29" r="1.3" fill="#ffaadd" opacity="0.5"/>
+    <circle cx="27" cy="30.5" r="1.5" fill="#110011"/>
+    <circle cx="41" cy="30.5" r="1.5" fill="#110011"/>
+    <!-- Brow ridges -->
+    <path d="M20,26 L28,29" stroke="#0a2a0a" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M40,29 L48,26" stroke="#0a2a0a" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Nose -->
+    <path d="M33,33 L34,35 L32,35" stroke="#0a2a0a" stroke-width="0.6" fill="none"/>
+    <!-- Arrogant smirk -->
+    <path d="M26,38 Q34,43 42,38" stroke="#0a2010" stroke-width="1.2" fill="none"/>
+    <path d="M28,38 Q34,41 40,38" fill="#0a2010" opacity="0.4"/>
+    <!-- Neck -->
+    <path d="M26,42 L42,42 L44,48 L24,48Z" fill="#3d8832"/>
+    <!-- Body -->
+    <path d="M16,48 L52,48 L50,90 Q34,92 18,90Z" fill="#3d8832"/>
+    <!-- Spots -->
+    <ellipse cx="26" cy="56" rx="6" ry="5" fill="#1a3a1a"/>
+    <ellipse cx="42" cy="56" rx="6" ry="5" fill="#1a3a1a"/>
+    <ellipse cx="34" cy="66" rx="7" ry="5" fill="#1a3a1a"/>
+    <ellipse cx="28" cy="74" rx="4" ry="3" fill="#1a3a1a"/>
+    <ellipse cx="40" cy="74" rx="4" ry="3" fill="#1a3a1a"/>
+    <!-- Chest accent -->
+    <path d="M28,48 Q34,52 40,48" fill="#88aa38" stroke="#6a8828" stroke-width="0.5"/>
+    <path d="M34,48 L34,62" stroke="#1a4a1a" stroke-width="0.5" opacity="0.6"/>
+    <!-- Waist -->
+    <rect x="18" y="80" width="32" height="4" rx="2" fill="#1a4a1a"/>
+    <!-- Arms -->
+    <path d="M16,50 L2,54 L0,74 L8,76 L10,60 L16,68" fill="#3d8832"/>
+    <path d="M52,50 L66,54 L68,74 L60,76 L58,60 L52,68" fill="#3d8832"/>
+    <!-- Arm spots -->
+    <ellipse cx="6" cy="64" rx="4" ry="4.5" fill="#1a3a1a"/>
+    <ellipse cx="62" cy="64" rx="4" ry="4.5" fill="#1a3a1a"/>
+    <!-- Hands - clawed -->
+    <path d="M0,76 L10,76 L10,82 Q5,85 0,82Z" fill="#3d8832"/>
+    <path d="M58,76 L68,76 L68,82 Q63,85 58,82Z" fill="#3d8832"/>
+    <path d="M1,80 L-1,85 M4,81 L3,86 M7,81 L8,86" stroke="#1a4a1a" stroke-width="0.8"/>
+    <path d="M59,80 L57,85 M62,81 L61,86 M65,81 L66,86" stroke="#1a4a1a" stroke-width="0.8"/>
+    <!-- Legs -->
+    <rect x="22" y="88" width="10" height="20" rx="4" fill="#3d8832"/>
+    <rect x="36" y="88" width="10" height="20" rx="4" fill="#3d8832"/>
+    <ellipse cx="27" cy="96" rx="3" ry="4" fill="#1a3a1a"/>
+    <ellipse cx="41" cy="96" rx="3" ry="4" fill="#1a3a1a"/>
+    <!-- Feet -->
+    <path d="M20,106 L18,112 L22,110 L20,116 L27,112 L26,118 L32,114 L34,108Z" fill="#0a3a0a"/>
+    <path d="M34,108 L36,114 L40,118 L41,112 L46,116 L46,110 L50,112 L48,106Z" fill="#0a3a0a"/>
+    <!-- Tail -->
+    <path d="M48,80 Q62,86 66,76 Q70,64 66,56 Q64,50 60,52" stroke="#3a8830" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M60,52 L56,46 L64,44 L66,52" fill="#0a3a0a"/>
+    <circle cx="60" cy="50" r="2" fill="#881155"/>
+  </svg>`
+};
+
+// === CHARACTERS ===
+const characters = [
+  { id: 'goku', name: 'Son Goku', hp: 450, level: 50, attacks: [
+    { name: 'Kamehameha', power: 65, type: 'Ki-Strahl', color: 'blue', accuracy: 90, anim: 'kamehameha' },
+    { name: 'Genki Dama', power: 90, type: 'Spezial', color: 'yellow', accuracy: 70, anim: 'genkidama' },
+    { name: 'Fausthieb', power: 40, type: 'Nahkampf', color: 'yellow', accuracy: 100, anim: 'punch' },
+    { name: 'Instant Trans.', power: 55, type: 'Teleport', color: 'blue', accuracy: 95, anim: 'instanttransmission' },
+  ]},
+  { id: 'vegeta', name: 'Vegeta', hp: 430, level: 49, attacks: [
+    { name: 'Final Flash', power: 75, type: 'Ki-Strahl', color: 'yellow', accuracy: 85, anim: 'finalflash' },
+    { name: 'Galick Gun', power: 60, type: 'Ki-Strahl', color: 'purple', accuracy: 90, anim: 'galickgun' },
+    { name: 'Big Bang Att.', power: 80, type: 'Spezial', color: 'yellow', accuracy: 75, anim: 'bigbang' },
+    { name: 'Tritt', power: 35, type: 'Nahkampf', color: 'yellow', accuracy: 100, anim: 'kick' },
+  ]},
+  { id: 'piccolo', name: 'Piccolo', hp: 380, level: 45, attacks: [
+    { name: 'Makankosappo', power: 80, type: 'Ki-Strahl', color: 'green', accuracy: 80, anim: 'makankosappo' },
+    { name: 'Masenko', power: 55, type: 'Ki-Strahl', color: 'yellow', accuracy: 92, anim: 'masenko' },
+    { name: 'Arm-Stretch', power: 45, type: 'Nahkampf', color: 'green', accuracy: 95, anim: 'armstretch' },
+    { name: 'Klon-Technik', power: 50, type: 'Spezial', color: 'green', accuracy: 88, anim: 'klon' },
+  ]},
+  { id: 'frieza', name: 'Freezer', hp: 460, level: 52, attacks: [
+    { name: 'Death Beam', power: 60, type: 'Ki-Strahl', color: 'purple', accuracy: 95, anim: 'deathbeam' },
+    { name: 'Death Ball', power: 85, type: 'Spezial', color: 'red', accuracy: 75, anim: 'deathball' },
+    { name: 'Tail Whip', power: 35, type: 'Nahkampf', color: 'purple', accuracy: 100, anim: 'tailwhip' },
+    { name: 'Nova Strike', power: 70, type: 'Aufladung', color: 'purple', accuracy: 82, anim: 'novastrike' },
+  ]},
+  { id: 'cell', name: 'Cell', hp: 470, level: 53, attacks: [
+    { name: 'Kamehameha', power: 60, type: 'Ki-Strahl', color: 'blue', accuracy: 90, anim: 'kamehameha_cell' },
+    { name: 'Solar Kameh.', power: 85, type: 'Spezial', color: 'yellow', accuracy: 72, anim: 'solarkamehameha' },
+    { name: 'Absorption', power: 50, type: 'Spezial', color: 'green', accuracy: 88, anim: 'absorption' },
+    { name: 'Zellkern-Hieb', power: 40, type: 'Nahkampf', color: 'green', accuracy: 100, anim: 'cellpunch' },
+  ]}
+];
+
+let selectedChar = null, playerState = null, enemyState = null, battleActive = false;
+
+// === CANVAS FX ===
+let canvas, ctx;
+function initCanvas() {
+  canvas = document.getElementById('fxCanvas');
+  const area = canvas.parentElement;
+  canvas.width = area.clientWidth;
+  canvas.height = area.clientHeight;
+  ctx = canvas.getContext('2d');
+}
+function clearFx() { if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+function getPos(el) {
+  const r = el.getBoundingClientRect();
+  const cr = canvas.getBoundingClientRect();
+  return { x: r.left - cr.left + r.width/2, y: r.top - cr.top + r.height/2 };
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// === CANVAS DRAWING HELPERS ===
+function drawEnergyBall(x, y, radius, c1, c2, alpha=1) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  const g = ctx.createRadialGradient(x,y,0,x,y,radius);
+  g.addColorStop(0, '#fff'); g.addColorStop(0.3, c1); g.addColorStop(1, c2);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,radius,0,Math.PI*2); ctx.fill();
+  // glow
+  ctx.globalAlpha = alpha * 0.4;
+  const g2 = ctx.createRadialGradient(x,y,radius*0.5,x,y,radius*2.5);
+  g2.addColorStop(0, c1); g2.addColorStop(1, 'transparent');
+  ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x,y,radius*2.5,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawBeam(x1,y1,x2,y2, width, c1, c2, alpha=1) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  const angle = Math.atan2(y2-y1, x2-x1);
+  const len = Math.hypot(x2-x1, y2-y1);
+  // glow layer
+  ctx.globalAlpha = alpha * 0.3;
+  ctx.strokeStyle = c2; ctx.lineWidth = width * 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  // outer beam
+  ctx.globalAlpha = alpha * 0.6;
+  ctx.strokeStyle = c1; ctx.lineWidth = width * 1.8;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  // core
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = width * 0.6;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSpiralBeam(x1,y1,x2,y2, width, c1, c2, time, alpha=1) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+  const nx = -dy/len, ny = dx/len;
+  // glow
+  ctx.globalAlpha = alpha * 0.25;
+  ctx.strokeStyle = c2; ctx.lineWidth = width * 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  // core
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = width * 0.5;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  // spiral lines
+  ctx.strokeStyle = c1; ctx.lineWidth = width * 0.8;
+  for (let s = 0; s < 2; s++) {
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const px = x1 + dx * t;
+      const py = y1 + dy * t;
+      const offset = Math.sin(t * 20 + time * 10 + s * Math.PI) * width * 1.2;
+      const fx = px + nx * offset;
+      const fy = py + ny * offset;
+      if (i === 0) ctx.moveTo(fx, fy); else ctx.lineTo(fx, fy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawImpact(x, y, radius, color, alpha=1) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  // star burst
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * radius, y + Math.sin(a) * radius);
+    ctx.lineTo(x + Math.cos(a + 0.15) * radius * 0.3, y + Math.sin(a + 0.15) * radius * 0.3);
+    ctx.fill();
+  }
+  drawEnergyBall(x, y, radius * 0.4, '#fff', color, alpha);
+  ctx.restore();
+}
+
+function drawAura(x, y, h, color, alpha, time) {
+  ctx.save(); ctx.globalAlpha = alpha * 0.5;
+  for (let i = 0; i < 12; i++) {
+    const a = (i/12)*Math.PI*2 + time*3;
+    const r = h * 0.5 + Math.sin(time*8+i)*h*0.15;
+    const px = x + Math.cos(a) * h * 0.25;
+    const py = y - h*0.1 + Math.sin(a) * h * 0.35;
+    const g = ctx.createRadialGradient(px,py,0,px,py,r*0.4);
+    g.addColorStop(0, color); g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,r*0.4,0,Math.PI*2); ctx.fill();
+  }
+  // flame tips going up
+  ctx.globalAlpha = alpha * 0.6;
+  for (let i = 0; i < 5; i++) {
+    const ox = x - h*0.3 + (i/4)*h*0.6;
+    const flameH = h*0.3 + Math.sin(time*10+i*2)*h*0.15;
+    const g = ctx.createRadialGradient(ox, y-h*0.4, 0, ox, y-h*0.4-flameH, flameH);
+    g.addColorStop(0, color); g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ox, y-h*0.4-flameH*0.5, flameH, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawParticles(particles) {
+  particles.forEach(p => {
+    ctx.save(); ctx.globalAlpha = p.alpha;
+    const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+    g.addColorStop(0,'#fff'); g.addColorStop(0.5,p.color); g.addColorStop(1,'transparent');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+// animated loop helper
+function animLoop(duration, fn) {
+  return new Promise(resolve => {
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      clearFx();
+      fn(t);
+      if (t < 1) requestAnimationFrame(tick); else { clearFx(); resolve(); }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+function flashScreen(color) {
+  const flash = document.getElementById('screenFlash');
+  flash.style.background = color;
+  flash.className = 'screen-flash active';
+  setTimeout(() => { flash.className = 'screen-flash'; }, 300);
+}
+
+// === ATTACK ANIMATIONS ===
+const attackAnims = {
+  // -- GOKU --
+  async kamehameha(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // charge phase
+    await animLoop(600, p => {
+      drawAura(f.x,f.y,80,'#00aaff',p,p*5);
+      drawEnergyBall(f.x+40, f.y, 8+p*18, '#00ddff','#0044ff', p);
+    });
+    from.classList.remove('charging');
+    // beam fires
+    await animLoop(500, p => {
+      const ex = f.x + (t.x - f.x) * Math.min(p*1.8, 1);
+      const ey = f.y + (t.y - f.y) * Math.min(p*1.8, 1);
+      drawBeam(f.x+40, f.y, ex, ey, 14, '#00ddff', '#0044ff', 1);
+      drawEnergyBall(f.x+40, f.y, 14, '#00ddff','#0066ff');
+      if (p > 0.5) drawEnergyBall(ex, ey, 20+p*15, '#fff','#00aaff', 1-((p-0.5)*2));
+    });
+  },
+
+  async genkidama(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // spirit bomb grows above
+    const bx = f.x, by = f.y - 120;
+    await animLoop(900, p => {
+      // energy particles flowing in
+      for (let i = 0; i < 8; i++) {
+        const a = (i/8)*Math.PI*2 + p*10;
+        const r = 150 * (1-p);
+        const px = bx + Math.cos(a)*r, py = by + Math.sin(a)*r;
+        drawEnergyBall(px,py, 3, '#ffd700','#ff8800', 0.5);
+      }
+      drawEnergyBall(bx, by, 10+p*45, '#ffffcc','#ffaa00', Math.min(p*2,1));
+      drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*5);
+    });
+    from.classList.remove('charging');
+    // throw at enemy
+    await animLoop(500, p => {
+      const ease = p*p;
+      const cx = bx + (t.x-bx)*ease;
+      const cy = by + (t.y-by)*ease;
+      drawEnergyBall(cx,cy, 55-p*10, '#ffffcc','#ffaa00');
+      if (p > 0.7) {
+        const ep = (p-0.7)/0.3;
+        drawImpact(t.x, t.y, 60+ep*80, '#ffaa00', 1-ep);
+        flashScreen('#ffffcc');
+      }
+    });
+  },
+
+  async punch(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // dash forward
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*p*0.7}px) translateY(${(t.y-f.y)*p*0.7}px)`;
+    });
+    // impact
+    drawImpact(t.x, t.y, 40, '#ffdd00');
+    flashScreen('#ffffff');
+    await wait(150);
+    clearFx();
+    // return
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*0.7*(1-p)}px) translateY(${(t.y-f.y)*0.7*(1-p)}px)`;
+    });
+    from.style.transform = '';
+  },
+
+  async instanttransmission(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // vanish
+    from.classList.add('teleport-out');
+    await wait(300);
+    // afterimage behind enemy
+    await animLoop(100, p => {
+      drawEnergyBall(t.x - 30, t.y, 20, '#00ddff','#0044ff', 0.3);
+    });
+    // strike
+    drawImpact(t.x, t.y, 45, '#00aaff');
+    flashScreen('#00ddff');
+    await wait(200);
+    clearFx();
+    // reappear
+    from.classList.remove('teleport-out');
+    from.classList.add('teleport-in');
+    await wait(300);
+    from.classList.remove('teleport-in');
+  },
+
+  // -- VEGETA --
+  async finalflash(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // arms-wide charge
+    await animLoop(700, p => {
+      drawAura(f.x,f.y,90,'#ffdd00',p,p*6);
+      // two energy balls at hands
+      drawEnergyBall(f.x-30, f.y-10, 6+p*14, '#ffff88','#ffaa00', p);
+      drawEnergyBall(f.x+50, f.y-10, 6+p*14, '#ffff88','#ffaa00', p);
+      if (p > 0.6) { // merge
+        const mp = (p-0.6)/0.4;
+        drawEnergyBall(f.x+10+mp*30, f.y-10, 10+mp*20, '#ffffaa','#ffcc00', mp);
+      }
+    });
+    from.classList.remove('charging');
+    // massive beam
+    await animLoop(500, p => {
+      const ex = f.x + (t.x - f.x) * Math.min(p*2, 1);
+      const ey = f.y + (t.y - f.y) * Math.min(p*2, 1);
+      drawBeam(f.x+40, f.y-10, ex, ey, 20, '#ffff44', '#ff8800');
+      drawEnergyBall(f.x+40, f.y-10, 18, '#ffffaa','#ffaa00');
+      if (p > 0.5) {
+        const ep = (p-0.5)/0.5;
+        drawImpact(t.x, t.y, 50+ep*60, '#ffcc00', 1-ep);
+      }
+    });
+    flashScreen('#ffff88');
+  },
+
+  async galickgun(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    await animLoop(500, p => {
+      drawAura(f.x,f.y,70,'#aa44ff',p,p*5);
+      drawEnergyBall(f.x+35, f.y+5, 6+p*12, '#dd88ff','#6600cc', p);
+    });
+    from.classList.remove('charging');
+    // spiral beam
+    await animLoop(500, p => {
+      const reach = Math.min(p*2, 1);
+      const ex = f.x + (t.x - f.x) * reach;
+      const ey = f.y + (t.y - f.y) * reach;
+      drawSpiralBeam(f.x+35, f.y+5, ex, ey, 8, '#cc66ff', '#6600cc', p);
+      drawEnergyBall(f.x+35, f.y+5, 10, '#dd88ff','#6600cc');
+      if (p > 0.5) drawEnergyBall(ex, ey, 15+p*12, '#fff','#aa44ff', 1-((p-0.5)*2));
+    });
+  },
+
+  async bigbang(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // charge single hand
+    await animLoop(500, p => {
+      drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*4);
+      drawEnergyBall(f.x+45, f.y-5, 5+p*25, '#ffffaa','#ffaa00', p);
+    });
+    from.classList.remove('charging');
+    // fire big energy ball
+    await animLoop(500, p => {
+      const ease = p*p;
+      const bx = f.x+45 + (t.x-f.x-45)*ease;
+      const by = f.y-5 + (t.y-f.y+5)*ease;
+      drawEnergyBall(bx, by, 30-p*5, '#ffffaa','#ffaa00');
+      if (p > 0.8) {
+        const ep = (p-0.8)/0.2;
+        drawImpact(t.x, t.y, 40+ep*70, '#ffaa00', 1-ep);
+        flashScreen('#ffff88');
+      }
+    });
+  },
+
+  async kick(from, to) {
+    const f = getPos(from), t = getPos(to);
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*p*0.7}px) translateY(${(t.y-f.y)*p*0.7}px) rotate(${p*15}deg)`;
+    });
+    drawImpact(t.x, t.y, 35, '#ffdd00');
+    flashScreen('#ffffff');
+    await wait(150);
+    clearFx();
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*0.7*(1-p)}px) translateY(${(t.y-f.y)*0.7*(1-p)}px) rotate(${15*(1-p)}deg)`;
+    });
+    from.style.transform = '';
+  },
+
+  // -- PICCOLO --
+  async makankosappo(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // finger charge with spiral
+    await animLoop(800, p => {
+      drawAura(f.x,f.y,60,'#44ff44',p*0.5,p*4);
+      // spiral charging at finger point
+      for (let i = 0; i < 6; i++) {
+        const a = (i/6)*Math.PI*2 + p*15;
+        const r = 20 * (1-p*0.5);
+        const px = f.x+45 + Math.cos(a)*r;
+        const py = f.y-20 + Math.sin(a)*r;
+        drawEnergyBall(px, py, 2+p*3, '#ffff44','#44ff44', p);
+      }
+      drawEnergyBall(f.x+45, f.y-20, 4+p*10, '#ffffaa','#66ff44', p);
+    });
+    from.classList.remove('charging');
+    // thin drill beam
+    await animLoop(400, p => {
+      const reach = Math.min(p*2.5, 1);
+      const ex = f.x + (t.x - f.x) * reach;
+      const ey = f.y-20 + (t.y - f.y+20) * reach;
+      drawSpiralBeam(f.x+45, f.y-20, ex, ey, 5, '#aaff44', '#228800', p*3);
+      drawEnergyBall(f.x+45, f.y-20, 8, '#ffffaa','#66ff44');
+      if (reach >= 1) drawImpact(t.x, t.y, 30+p*20, '#44ff44', Math.max(0,1-(p-0.5)*3));
+    });
+  },
+
+  async masenko(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // hands above head
+    await animLoop(400, p => {
+      drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*4);
+      drawEnergyBall(f.x+10, f.y-50, 5+p*15, '#ffffaa','#ffaa00', p);
+    });
+    from.classList.remove('charging');
+    // fire beam
+    await animLoop(450, p => {
+      const reach = Math.min(p*2, 1);
+      const ex = f.x + (t.x - f.x) * reach;
+      const ey = f.y-50 + (t.y - f.y+50) * reach;
+      drawBeam(f.x+10, f.y-50, ex, ey, 12, '#ffee44', '#ff8800');
+      drawEnergyBall(f.x+10, f.y-50, 12, '#ffffaa','#ffaa00');
+      if (p > 0.5) drawEnergyBall(ex,ey, 18+p*12, '#fff','#ffaa00', 1-((p-0.5)*2));
+    });
+  },
+
+  async armstretch(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // extend arm as a bar
+    await animLoop(300, p => {
+      const ex = f.x+40 + (t.x - f.x-40) * p;
+      const ey = f.y + (t.y - f.y) * p;
+      ctx.save();
+      ctx.strokeStyle = '#4a8c3f'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(f.x+40, f.y); ctx.lineTo(ex, ey); ctx.stroke();
+      // fist at end
+      drawEnergyBall(ex, ey, 10, '#5aa84a','#3a7830');
+      ctx.restore();
+    });
+    // impact
+    drawImpact(t.x, t.y, 30, '#44ff44');
+    flashScreen('#ffffff');
+    await wait(200);
+    // retract
+    await animLoop(200, p => {
+      const ex = t.x + (f.x+40 - t.x) * p;
+      const ey = t.y + (f.y - t.y) * p;
+      clearFx();
+      ctx.save();
+      ctx.strokeStyle = '#4a8c3f'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(f.x+40, f.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.restore();
+    });
+    clearFx();
+  },
+
+  async klon(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // flash
+    from.classList.add('charging');
+    await animLoop(300, p => {
+      drawAura(f.x,f.y,60,'#44ff44', p, p*8);
+    });
+    from.classList.remove('charging');
+    // ghost clone appears at enemy, strikes
+    await animLoop(400, p => {
+      const gx = t.x - 40, gy = t.y;
+      ctx.save(); ctx.globalAlpha = 0.5 * (p < 0.5 ? p*2 : 2-p*2);
+      // draw a green silhouette
+      drawEnergyBall(gx, gy, 35, '#44ff44','#228800', ctx.globalAlpha);
+      ctx.restore();
+      if (p > 0.4 && p < 0.6) drawImpact(t.x, t.y, 30, '#44ff44', 1);
+    });
+    flashScreen('#44ff44');
+    clearFx();
+  },
+
+  // -- FREEZER --
+  async deathbeam(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // quick finger point
+    await animLoop(200, p => {
+      drawEnergyBall(f.x+40, f.y-15, 3+p*5, '#ff88ff','#8800aa', p);
+    });
+    // instant thin laser
+    await animLoop(250, p => {
+      const alpha = p < 0.3 ? 1 : 1 - (p-0.3)/0.7;
+      // thin deadly beam
+      drawBeam(f.x+40, f.y-15, t.x, t.y, 3, '#ff44ff', '#8800cc', alpha);
+      drawEnergyBall(f.x+40, f.y-15, 5, '#ffaaff','#aa00ff', alpha);
+      if (p > 0.1 && p < 0.4) drawImpact(t.x, t.y, 20, '#cc44ff', 1-(p-0.1)/0.3);
+    });
+    flashScreen('#ff88ff');
+  },
+
+  async deathball(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    const bx = f.x + 30, by = f.y - 60;
+    // grow massive ball above finger
+    await animLoop(800, p => {
+      drawAura(f.x,f.y,50,'#ff4444',p*0.3,p*4);
+      drawEnergyBall(bx, by, 5+p*50, '#ff6644','#aa0000', Math.min(p*2,1));
+      // swirling particles
+      for (let i = 0; i < 6; i++) {
+        const a = (i/6)*Math.PI*2 + p*8;
+        const r = 40+p*20;
+        drawEnergyBall(bx+Math.cos(a)*r, by+Math.sin(a)*r, 3, '#ff8844','#ff0000', p*0.5);
+      }
+    });
+    from.classList.remove('charging');
+    // hurl at enemy
+    await animLoop(500, p => {
+      const ease = p*p;
+      const cx = bx + (t.x-bx)*ease;
+      const cy = by + (t.y-by)*ease;
+      drawEnergyBall(cx, cy, 55-p*15, '#ff6644','#aa0000');
+      if (p > 0.75) {
+        const ep = (p-0.75)/0.25;
+        drawImpact(t.x, t.y, 50+ep*90, '#ff4400', 1-ep);
+        flashScreen('#ff6644');
+      }
+    });
+  },
+
+  async tailwhip(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // quick spin dash
+    await animLoop(250, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*p*0.6}px) translateY(${(t.y-f.y)*p*0.6}px) scaleX(-1) rotate(${p*360}deg)`;
+    });
+    drawImpact(t.x, t.y, 30, '#cc44ff');
+    flashScreen('#ffffff');
+    await wait(150);
+    clearFx();
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*0.6*(1-p)}px) translateY(${(t.y-f.y)*0.6*(1-p)}px) scaleX(-1)`;
+    });
+    from.style.transform = '';
+  },
+
+  async novastrike(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // envelop in aura
+    await animLoop(500, p => {
+      drawAura(f.x,f.y,90,'#aa44ff',p,p*8);
+      drawEnergyBall(f.x,f.y,30+p*20, '#dd88ff','#6600cc', p*0.5);
+    });
+    from.classList.remove('charging');
+    // rocket dash through enemy
+    await animLoop(350, p => {
+      const ease = p < 0.5 ? 2*p*p : 1-2*(1-p)*(1-p);
+      const cx = f.x + (t.x - f.x) * ease;
+      const cy = f.y + (t.y - f.y) * ease;
+      from.style.transform = `translateX(${(t.x-f.x)*ease}px) translateY(${(t.y-f.y)*ease}px) scaleX(-1)`;
+      drawEnergyBall(cx, cy, 40, '#dd88ff','#6600cc', 0.6);
+      drawAura(cx,cy,50,'#aa44ff',0.8,p*10);
+      // trail
+      for (let i = 1; i <= 4; i++) {
+        const tt = Math.max(0, ease - i*0.08);
+        const tx = f.x + (t.x-f.x)*tt;
+        const ty = f.y + (t.y-f.y)*tt;
+        drawEnergyBall(tx,ty, 20-i*4, '#aa44ff','#440088', 0.3-i*0.06);
+      }
+    });
+    drawImpact(t.x, t.y, 50, '#aa44ff');
+    flashScreen('#dd88ff');
+    await wait(200);
+    clearFx();
+    // return
+    await animLoop(300, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*(1-p)}px) translateY(${(t.y-f.y)*(1-p)}px) scaleX(-1)`;
+    });
+    from.style.transform = '';
+  },
+
+  // -- CELL --
+  async kamehameha_cell(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    await animLoop(500, p => {
+      drawAura(f.x,f.y,70,'#44ddaa',p,p*5);
+      drawEnergyBall(f.x+40, f.y, 6+p*14, '#88ffdd','#00aa66', p);
+    });
+    from.classList.remove('charging');
+    await animLoop(500, p => {
+      const reach = Math.min(p*1.8, 1);
+      const ex = f.x + (t.x - f.x) * reach;
+      const ey = f.y + (t.y - f.y) * reach;
+      drawBeam(f.x+40, f.y, ex, ey, 12, '#44ffcc', '#0066aa');
+      drawEnergyBall(f.x+40, f.y, 12, '#88ffdd','#0088aa');
+      if (p > 0.5) drawEnergyBall(ex,ey, 18+p*12, '#fff','#44ddaa', 1-((p-0.5)*2));
+    });
+  },
+
+  async solarkamehameha(from, to) {
+    const f = getPos(from), t = getPos(to);
+    from.classList.add('charging');
+    // massive charge
+    await animLoop(700, p => {
+      drawAura(f.x,f.y,100,'#ffff44',p,p*6);
+      drawEnergyBall(f.x+40, f.y, 8+p*25, '#fffff0','#ffaa00', p);
+      if (p > 0.5) flashScreen('#ffffcc');
+    });
+    from.classList.remove('charging');
+    // enormous beam
+    await animLoop(600, p => {
+      const reach = Math.min(p*1.5, 1);
+      const ex = f.x + (t.x - f.x) * reach;
+      const ey = f.y + (t.y - f.y) * reach;
+      drawBeam(f.x+40, f.y, ex, ey, 28, '#ffffaa', '#ff8800');
+      drawEnergyBall(f.x+40, f.y, 24, '#fffff0','#ffcc00');
+      if (p > 0.4) {
+        const ep = (p-0.4)/0.6;
+        drawImpact(t.x, t.y, 60+ep*80, '#ffaa00', 1-ep*0.5);
+      }
+    });
+    flashScreen('#ffffcc');
+  },
+
+  async absorption(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // particles drain from enemy to cell
+    const particles = [];
+    for (let i = 0; i < 20; i++) {
+      particles.push({
+        sx: t.x + (Math.random()-0.5)*60,
+        sy: t.y + (Math.random()-0.5)*60,
+        delay: Math.random() * 0.4,
+        color: '#44ff44', r: 3+Math.random()*4
+      });
+    }
+    await animLoop(800, p => {
+      particles.forEach(pt => {
+        const pp = Math.max(0, Math.min(1, (p - pt.delay) / 0.6));
+        if (pp > 0) {
+          const x = pt.sx + (f.x - pt.sx) * pp;
+          const y = pt.sy + (f.y - pt.sy) * pp;
+          drawEnergyBall(x, y, pt.r * (1-pp*0.5), '#88ff88', '#00aa00', 1-pp*0.3);
+        }
+      });
+      // glow on cell growing
+      if (p > 0.3) drawAura(f.x,f.y,50,'#44ff44',(p-0.3)*1.4,p*5);
+      // enemy flickers
+      if (p > 0.2) to.style.filter = `brightness(${1 + Math.sin(p*30)*0.3})`;
+    });
+    to.style.filter = '';
+    flashScreen('#44ff44');
+  },
+
+  async cellpunch(from, to) {
+    const f = getPos(from), t = getPos(to);
+    // aura powered punch
+    from.classList.add('charging');
+    await animLoop(200, p => {
+      drawAura(f.x,f.y,50,'#44ff44',p,p*6);
+    });
+    from.classList.remove('charging');
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*p*0.7}px) translateY(${(t.y-f.y)*p*0.7}px)`;
+      drawAura(f.x+(t.x-f.x)*p*0.7, f.y+(t.y-f.y)*p*0.7, 40, '#44ff44', 0.6, p*8);
+    });
+    drawImpact(t.x, t.y, 40, '#44ff44');
+    flashScreen('#ffffff');
+    await wait(150);
+    clearFx();
+    await animLoop(200, p => {
+      from.style.transform = `translateX(${(t.x-f.x)*0.7*(1-p)}px) translateY(${(t.y-f.y)*0.7*(1-p)}px)`;
+    });
+    from.style.transform = '';
+  }
+};
+
+// === SCREEN MANAGEMENT ===
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'select-screen') buildCharGrid();
+  if (id === 'battle-screen') setTimeout(initCanvas, 50);
+}
+
+function buildCharGrid() {
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = '';
+  characters.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.dataset.id = c.id;
+    card.innerHTML = `
+      <div class="char-sprite-box">${sprites[c.id]}</div>
+      <div class="name">${c.name}</div>
+      <div class="stats">HP: ${c.hp}<br>Level: ${c.level}<br>Attacken: ${c.attacks.length}</div>
+    `;
+    card.onclick = () => selectChar(c.id);
+    grid.appendChild(card);
+  });
+}
+
+function selectChar(id) {
+  selectedChar = id;
+  document.querySelectorAll('.char-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
+  document.getElementById('fightBtn').classList.add('visible');
+}
+
+function startBattle() {
+  if (!selectedChar) return;
+  const player = characters.find(c => c.id === selectedChar);
+  const enemies = characters.filter(c => c.id !== selectedChar);
+  const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+  playerState = { ...player, currentHp: player.hp };
+  enemyState = { ...enemy, currentHp: enemy.hp };
+  showScreen('battle-screen');
+  initBattle();
+}
+
+function initBattle() {
+  battleActive = true;
+  document.getElementById('playerName').textContent = playerState.name;
+  document.getElementById('playerLevel').textContent = `Lv ${playerState.level}`;
+  document.getElementById('playerFighter').innerHTML = sprites[playerState.id];
+  updateHpBar('player');
+  document.getElementById('enemyName').textContent = enemyState.name;
+  document.getElementById('enemyLevel').textContent = `Lv ${enemyState.level}`;
+  document.getElementById('enemyFighter').innerHTML = sprites[enemyState.id];
+  updateHpBar('enemy');
+  document.getElementById('playerFighter').className = 'fighter player-fighter';
+  document.getElementById('enemyFighter').className = 'fighter enemy-fighter';
+  showMessage(`Ein wildes ${enemyState.name} erscheint!`, () => showAttackMenu());
+}
+
+function updateHpBar(who) {
+  const state = who === 'player' ? playerState : enemyState;
+  const pct = Math.max(0, (state.currentHp / state.hp) * 100);
+  const bar = document.getElementById(who === 'player' ? 'playerHpBar' : 'enemyHpBar');
+  const text = document.getElementById(who === 'player' ? 'playerHpText' : 'enemyHpText');
+  bar.style.width = pct + '%';
+  bar.className = 'hp-bar ' + (pct > 50 ? 'high' : pct > 20 ? 'mid' : 'low');
+  text.textContent = `${Math.max(0, Math.floor(state.currentHp))} / ${state.hp}`;
+}
+
+function showMessage(text, callback) {
+  const el = document.getElementById('messageText');
+  document.getElementById('actionMenu').innerHTML = '';
+  el.textContent = '';
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < text.length) { el.textContent += text[i]; i++; }
+    else { clearInterval(interval); if (callback) setTimeout(callback, 600); }
+  }, 30);
+}
+
+function showAttackMenu() {
+  if (!battleActive) return;
+  const menu = document.getElementById('actionMenu');
+  menu.innerHTML = '';
+  document.getElementById('messageText').textContent = `Was soll ${playerState.name} tun?`;
+  playerState.attacks.forEach((atk, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'action-btn';
+    btn.innerHTML = `${atk.name}<span class="atk-type">${atk.type} | ${atk.power} PWR</span>`;
+    btn.onclick = () => doAttack(true, i);
+    menu.appendChild(btn);
+  });
+}
+
+function disableMenu() {
+  document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+}
+
+function calcDamage(power, atkLevel, defLevel) {
+  const base = ((2 * atkLevel / 5 + 2) * power / 50) + 2;
+  return Math.floor(base * (0.85 + Math.random() * 0.15) * (Math.random() < 0.1 ? 1.5 : 1));
+}
+
+async function doAttack(isPlayer, atkIndex) {
+  if (!battleActive) return;
+  if (isPlayer) disableMenu();
+
+  const attacker = isPlayer ? playerState : enemyState;
+  const defender = isPlayer ? enemyState : playerState;
+  const atk = attacker.attacks[atkIndex];
+  const hit = Math.random() * 100 < atk.accuracy;
+  const attackerEl = document.getElementById(isPlayer ? 'playerFighter' : 'enemyFighter');
+  const defenderEl = document.getElementById(isPlayer ? 'enemyFighter' : 'playerFighter');
+
+  showMessage(`${attacker.name} setzt ${atk.name} ein!`, async () => {
+    initCanvas();
+
+    // Run the animation
+    const animFn = attackAnims[atk.anim];
+    if (animFn) {
+      await animFn(attackerEl, defenderEl);
+    }
+    clearFx();
+
+    // Apply hit/damage
+    if (hit) {
+      defenderEl.classList.add('damaged');
+      await wait(400);
+      defenderEl.classList.remove('damaged');
+
+      const dmg = calcDamage(atk.power, attacker.level, defender.level);
+      defender.currentHp -= dmg;
+      updateHpBar(isPlayer ? 'enemy' : 'player');
+
+      if (defender.currentHp <= 0) {
+        defender.currentHp = 0;
+        updateHpBar(isPlayer ? 'enemy' : 'player');
+        defenderEl.classList.add('fainted');
+        showMessage(`${defender.name} wurde besiegt${isPlayer ? '!' : '...'}`, () => {
+          battleActive = false;
+          showResult(isPlayer);
+        });
+        return;
+      }
+      showMessage(`${defender.name} nimmt ${dmg} Schaden!`, () => {
+        if (isPlayer) setTimeout(() => enemyTurn(), 500);
+        else showAttackMenu();
+      });
+    } else {
+      showMessage(`${atk.name} ging daneben!`, () => {
+        if (isPlayer) setTimeout(() => enemyTurn(), 500);
+        else showAttackMenu();
+      });
+    }
+  });
+}
+
+function enemyTurn() {
+  if (!battleActive) return;
+  const atkIndex = Math.floor(Math.random() * enemyState.attacks.length);
+  doAttack(false, atkIndex);
+}
+
+function showResult(won) {
+  setTimeout(() => {
+    showScreen('result-screen');
+    const sprite = document.getElementById('resultSprite');
+    const title = document.getElementById('resultTitle');
+    const text = document.getElementById('resultText');
+    if (won) {
+      sprite.innerHTML = sprites[playerState.id];
+      title.textContent = 'SIEG!';
+      title.style.color = '#ffd700';
+      text.textContent = `${playerState.name} hat ${enemyState.name} besiegt!`;
+    } else {
+      sprite.innerHTML = sprites[enemyState.id];
+      title.textContent = 'NIEDERLAGE...';
+      title.style.color = '#ff4444';
+      text.textContent = `${enemyState.name} war zu stark...`;
+    }
+  }, 1000);
+}
+
+function resetGame() { selectedChar = null; showScreen('select-screen'); }
+
+window.addEventListener('resize', () => { if(canvas) initCanvas(); });
+</script>
+</body>
+</html>

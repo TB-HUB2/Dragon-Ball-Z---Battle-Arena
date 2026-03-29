@@ -17,7 +17,7 @@
     overflow: hidden;
   }
 
-  .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+  .screen { display: none; width: 100vw; min-height: 100vh; position: absolute; top: 0; left: 0; }
   .screen.active { display: flex; }
 
   /* === TITLE === */
@@ -280,7 +280,12 @@
 
   /* === MOBILE === */
   @media (max-width: 768px) {
-    body { overflow: auto; }
+    body { overflow: auto; overflow-x: hidden; }
+
+    .screen.active { position: relative; }
+
+    #battle-screen.active { position: absolute; }
+    #result-screen.active { position: absolute; }
 
     /* Title */
     #title-screen h1 { font-size: 1.3rem; }
@@ -289,8 +294,9 @@
 
     /* Select */
     #select-screen {
-      overflow-y: auto; -webkit-overflow-scrolling: touch;
-      padding: 15px 10px 40px;
+      overflow-y: visible; -webkit-overflow-scrolling: touch;
+      padding: 15px 10px 60px;
+      min-height: 100vh; height: auto;
     }
     #select-screen h2 { font-size: 0.8rem; margin: 10px 0 15px; }
     .char-grid { gap: 10px; }

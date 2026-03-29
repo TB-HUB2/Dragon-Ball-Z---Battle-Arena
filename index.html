@@ -284,7 +284,7 @@
 <div id="title-screen" class="screen active">
   <h1>DRAGON BALL Z</h1>
   <h2>Kampfarena</h2>
-  <button class="start-btn" onclick="showScreen('select-screen')">START</button>
+  <button class="start-btn" onclick="sfx.menuConfirm(); showScreen('select-screen')">START</button>
 </div>
 
 <div id="select-screen" class="screen">
@@ -680,31 +680,31 @@ const sprites = {
 
 // === CHARACTERS ===
 const characters = [
-  { id: 'goku', name: 'Son Goku', hp: 450, level: 50, attacks: [
+  { id: 'goku', name: 'Son Goku', hp: 220, level: 50, attacks: [
     { name: 'Kamehameha', power: 65, type: 'Ki-Strahl', color: 'blue', accuracy: 90, anim: 'kamehameha' },
     { name: 'Genki Dama', power: 90, type: 'Spezial', color: 'yellow', accuracy: 70, anim: 'genkidama' },
     { name: 'Fausthieb', power: 40, type: 'Nahkampf', color: 'yellow', accuracy: 100, anim: 'punch' },
     { name: 'Instant Trans.', power: 55, type: 'Teleport', color: 'blue', accuracy: 95, anim: 'instanttransmission' },
   ]},
-  { id: 'vegeta', name: 'Vegeta', hp: 430, level: 49, attacks: [
+  { id: 'vegeta', name: 'Vegeta', hp: 210, level: 49, attacks: [
     { name: 'Final Flash', power: 75, type: 'Ki-Strahl', color: 'yellow', accuracy: 85, anim: 'finalflash' },
     { name: 'Galick Gun', power: 60, type: 'Ki-Strahl', color: 'purple', accuracy: 90, anim: 'galickgun' },
     { name: 'Big Bang Att.', power: 80, type: 'Spezial', color: 'yellow', accuracy: 75, anim: 'bigbang' },
     { name: 'Tritt', power: 35, type: 'Nahkampf', color: 'yellow', accuracy: 100, anim: 'kick' },
   ]},
-  { id: 'piccolo', name: 'Piccolo', hp: 380, level: 45, attacks: [
+  { id: 'piccolo', name: 'Piccolo', hp: 190, level: 45, attacks: [
     { name: 'Makankosappo', power: 80, type: 'Ki-Strahl', color: 'green', accuracy: 80, anim: 'makankosappo' },
     { name: 'Masenko', power: 55, type: 'Ki-Strahl', color: 'yellow', accuracy: 92, anim: 'masenko' },
     { name: 'Arm-Stretch', power: 45, type: 'Nahkampf', color: 'green', accuracy: 95, anim: 'armstretch' },
     { name: 'Klon-Technik', power: 50, type: 'Spezial', color: 'green', accuracy: 88, anim: 'klon' },
   ]},
-  { id: 'frieza', name: 'Freezer', hp: 460, level: 52, attacks: [
+  { id: 'frieza', name: 'Freezer', hp: 230, level: 52, attacks: [
     { name: 'Death Beam', power: 60, type: 'Ki-Strahl', color: 'purple', accuracy: 95, anim: 'deathbeam' },
     { name: 'Death Ball', power: 85, type: 'Spezial', color: 'red', accuracy: 75, anim: 'deathball' },
     { name: 'Tail Whip', power: 35, type: 'Nahkampf', color: 'purple', accuracy: 100, anim: 'tailwhip' },
     { name: 'Nova Strike', power: 70, type: 'Aufladung', color: 'purple', accuracy: 82, anim: 'novastrike' },
   ]},
-  { id: 'cell', name: 'Cell', hp: 470, level: 53, attacks: [
+  { id: 'cell', name: 'Cell', hp: 235, level: 53, attacks: [
     { name: 'Kamehameha', power: 60, type: 'Ki-Strahl', color: 'blue', accuracy: 90, anim: 'kamehameha_cell' },
     { name: 'Solar Kameh.', power: 85, type: 'Spezial', color: 'yellow', accuracy: 72, anim: 'solarkamehameha' },
     { name: 'Absorption', power: 50, type: 'Spezial', color: 'green', accuracy: 88, anim: 'absorption' },
@@ -713,6 +713,245 @@ const characters = [
 ];
 
 let selectedChar = null, playerState = null, enemyState = null, battleActive = false;
+
+// === AUDIO ENGINE ===
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTone(freq, duration, type='sine', vol=0.15, rampDown=true) {
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  gain.gain.setValueAtTime(vol, ac.currentTime);
+  if (rampDown) gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + duration);
+}
+
+function playNoise(duration, vol=0.12) {
+  const ac = getAudio();
+  const bufSize = ac.sampleRate * duration;
+  const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(vol, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  src.connect(gain); gain.connect(ac.destination);
+  src.start();
+}
+
+const sfx = {
+  menuSelect() {
+    playTone(880, 0.08, 'square', 0.08);
+    setTimeout(() => playTone(1100, 0.06, 'square', 0.06), 50);
+  },
+  menuConfirm() {
+    playTone(660, 0.06, 'square', 0.08);
+    setTimeout(() => playTone(880, 0.06, 'square', 0.08), 60);
+    setTimeout(() => playTone(1320, 0.1, 'square', 0.08), 120);
+  },
+  charge() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, ac.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.08, ac.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ac.currentTime + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.7);
+  },
+  beam() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, ac.currentTime);
+    osc.frequency.linearRampToValueAtTime(350, ac.currentTime + 0.15);
+    osc.frequency.linearRampToValueAtTime(250, ac.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.14, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.5);
+    // add rumble
+    playNoise(0.4, 0.08);
+  },
+  bigBeam() {
+    const ac = getAudio();
+    for (let i = 0; i < 3; i++) {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = i === 0 ? 'sawtooth' : 'square';
+      osc.frequency.setValueAtTime(150 + i * 80, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(300 + i * 60, ac.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.07, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.start(); osc.stop(ac.currentTime + 0.6);
+    }
+    playNoise(0.5, 0.1);
+  },
+  energyBall() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(150, ac.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.12, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.4);
+  },
+  explosion() {
+    playNoise(0.35, 0.18);
+    playTone(80, 0.3, 'sine', 0.15);
+    setTimeout(() => playNoise(0.2, 0.1), 100);
+  },
+  hit() {
+    playNoise(0.1, 0.2);
+    playTone(200, 0.1, 'square', 0.12);
+  },
+  punch() {
+    playNoise(0.06, 0.22);
+    playTone(150, 0.08, 'square', 0.15);
+  },
+  miss() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(500, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ac.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.08, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.25);
+  },
+  teleport() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ac.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.1, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.15);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.15);
+  },
+  laserThin() {
+    playTone(1800, 0.12, 'sawtooth', 0.08);
+    playTone(2400, 0.08, 'square', 0.05);
+  },
+  absorb() {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ac.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.04, ac.currentTime);
+    gain.gain.linearRampToValueAtTime(0.12, ac.currentTime + 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.7);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + 0.7);
+  },
+  victory() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((n, i) => {
+      setTimeout(() => playTone(n, 0.25, 'square', 0.08), i * 150);
+    });
+    setTimeout(() => playTone(1047, 0.5, 'square', 0.1), 600);
+  },
+  defeat() {
+    const notes = [400, 350, 300, 200];
+    notes.forEach((n, i) => {
+      setTimeout(() => playTone(n, 0.3, 'sawtooth', 0.07), i * 200);
+    });
+  },
+  battleAppear() {
+    playTone(220, 0.15, 'square', 0.06);
+    setTimeout(() => playTone(330, 0.15, 'square', 0.06), 120);
+    setTimeout(() => playTone(440, 0.2, 'square', 0.08), 240);
+  }
+};
+
+// === BATTLE MUSIC ===
+let bgmNodes = null;
+function startBGM() {
+  stopBGM();
+  const ac = getAudio();
+  const master = ac.createGain();
+  master.gain.setValueAtTime(0.06, ac.currentTime);
+  master.connect(ac.destination);
+
+  // bass line
+  const bassOsc = ac.createOscillator();
+  bassOsc.type = 'square';
+  bassOsc.frequency.setValueAtTime(55, ac.currentTime);
+  const bassGain = ac.createGain();
+  bassGain.gain.setValueAtTime(0.5, ac.currentTime);
+  bassOsc.connect(bassGain); bassGain.connect(master);
+  bassOsc.start();
+
+  // pulse rhythm via gain modulation
+  const lfo = ac.createOscillator();
+  lfo.type = 'square';
+  lfo.frequency.setValueAtTime(3.5, ac.currentTime);
+  const lfoGain = ac.createGain();
+  lfoGain.gain.setValueAtTime(0.4, ac.currentTime);
+  lfo.connect(lfoGain); lfoGain.connect(bassGain.gain);
+  lfo.start();
+
+  // tension pad
+  const pad = ac.createOscillator();
+  pad.type = 'sawtooth';
+  pad.frequency.setValueAtTime(110, ac.currentTime);
+  const padGain = ac.createGain();
+  padGain.gain.setValueAtTime(0.15, ac.currentTime);
+  const padFilter = ac.createBiquadFilter();
+  padFilter.type = 'lowpass';
+  padFilter.frequency.setValueAtTime(400, ac.currentTime);
+  pad.connect(padFilter); padFilter.connect(padGain); padGain.connect(master);
+  pad.start();
+
+  // hi-hat rhythm
+  const hiHatInterval = setInterval(() => {
+    if (!bgmNodes) { clearInterval(hiHatInterval); return; }
+    playNoise(0.03, 0.03);
+  }, 143);
+
+  // bass note changes
+  const bassNotes = [55, 55, 65, 55, 73, 65, 55, 82];
+  let bassIdx = 0;
+  const bassInterval = setInterval(() => {
+    if (!bgmNodes) { clearInterval(bassInterval); return; }
+    bassIdx = (bassIdx + 1) % bassNotes.length;
+    bassOsc.frequency.setValueAtTime(bassNotes[bassIdx], ac.currentTime);
+    pad.frequency.setValueAtTime(bassNotes[bassIdx] * 2, ac.currentTime);
+  }, 571);
+
+  bgmNodes = { oscs: [bassOsc, lfo, pad], master, intervals: [hiHatInterval, bassInterval] };
+}
+
+function stopBGM() {
+  if (!bgmNodes) return;
+  bgmNodes.intervals.forEach(i => clearInterval(i));
+  bgmNodes.oscs.forEach(o => { try { o.stop(); } catch(e){} });
+  bgmNodes.master.disconnect();
+  bgmNodes = null;
+}
 
 // === CANVAS FX ===
 let canvas, ctx;
@@ -864,6 +1103,7 @@ function flashScreen(color) {
   flash.style.background = color;
   flash.className = 'screen-flash active';
   setTimeout(() => { flash.className = 'screen-flash'; }, 300);
+  sfx.explosion();
 }
 
 // === ATTACK ANIMATIONS ===
@@ -871,14 +1111,14 @@ const attackAnims = {
   // -- GOKU --
   async kamehameha(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // charge phase
     await animLoop(600, p => {
       drawAura(f.x,f.y,80,'#00aaff',p,p*5);
       drawEnergyBall(f.x+40, f.y, 8+p*18, '#00ddff','#0044ff', p);
     });
     from.classList.remove('charging');
-    // beam fires
+    sfx.beam();
     await animLoop(500, p => {
       const ex = f.x + (t.x - f.x) * Math.min(p*1.8, 1);
       const ey = f.y + (t.y - f.y) * Math.min(p*1.8, 1);
@@ -890,7 +1130,7 @@ const attackAnims = {
 
   async genkidama(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // spirit bomb grows above
     const bx = f.x, by = f.y - 120;
     await animLoop(900, p => {
@@ -905,7 +1145,7 @@ const attackAnims = {
       drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*5);
     });
     from.classList.remove('charging');
-    // throw at enemy
+    sfx.bigBeam();
     await animLoop(500, p => {
       const ease = p*p;
       const cx = bx + (t.x-bx)*ease;
@@ -921,7 +1161,7 @@ const attackAnims = {
 
   async punch(from, to) {
     const f = getPos(from), t = getPos(to);
-    // dash forward
+    sfx.punch();
     await animLoop(200, p => {
       from.style.transform = `translateX(${(t.x-f.x)*p*0.7}px) translateY(${(t.y-f.y)*p*0.7}px)`;
     });
@@ -939,7 +1179,7 @@ const attackAnims = {
 
   async instanttransmission(from, to) {
     const f = getPos(from), t = getPos(to);
-    // vanish
+    sfx.teleport();
     from.classList.add('teleport-out');
     await wait(300);
     // afterimage behind enemy
@@ -961,7 +1201,7 @@ const attackAnims = {
   // -- VEGETA --
   async finalflash(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // arms-wide charge
     await animLoop(700, p => {
       drawAura(f.x,f.y,90,'#ffdd00',p,p*6);
@@ -974,7 +1214,7 @@ const attackAnims = {
       }
     });
     from.classList.remove('charging');
-    // massive beam
+    sfx.bigBeam();
     await animLoop(500, p => {
       const ex = f.x + (t.x - f.x) * Math.min(p*2, 1);
       const ey = f.y + (t.y - f.y) * Math.min(p*2, 1);
@@ -990,13 +1230,13 @@ const attackAnims = {
 
   async galickgun(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     await animLoop(500, p => {
       drawAura(f.x,f.y,70,'#aa44ff',p,p*5);
       drawEnergyBall(f.x+35, f.y+5, 6+p*12, '#dd88ff','#6600cc', p);
     });
     from.classList.remove('charging');
-    // spiral beam
+    sfx.beam();
     await animLoop(500, p => {
       const reach = Math.min(p*2, 1);
       const ex = f.x + (t.x - f.x) * reach;
@@ -1009,14 +1249,14 @@ const attackAnims = {
 
   async bigbang(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // charge single hand
     await animLoop(500, p => {
       drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*4);
       drawEnergyBall(f.x+45, f.y-5, 5+p*25, '#ffffaa','#ffaa00', p);
     });
     from.classList.remove('charging');
-    // fire big energy ball
+    sfx.energyBall();
     await animLoop(500, p => {
       const ease = p*p;
       const bx = f.x+45 + (t.x-f.x-45)*ease;
@@ -1032,6 +1272,7 @@ const attackAnims = {
 
   async kick(from, to) {
     const f = getPos(from), t = getPos(to);
+    sfx.punch();
     await animLoop(200, p => {
       from.style.transform = `translateX(${(t.x-f.x)*p*0.7}px) translateY(${(t.y-f.y)*p*0.7}px) rotate(${p*15}deg)`;
     });
@@ -1048,7 +1289,7 @@ const attackAnims = {
   // -- PICCOLO --
   async makankosappo(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // finger charge with spiral
     await animLoop(800, p => {
       drawAura(f.x,f.y,60,'#44ff44',p*0.5,p*4);
@@ -1063,7 +1304,7 @@ const attackAnims = {
       drawEnergyBall(f.x+45, f.y-20, 4+p*10, '#ffffaa','#66ff44', p);
     });
     from.classList.remove('charging');
-    // thin drill beam
+    sfx.beam();
     await animLoop(400, p => {
       const reach = Math.min(p*2.5, 1);
       const ex = f.x + (t.x - f.x) * reach;
@@ -1076,14 +1317,14 @@ const attackAnims = {
 
   async masenko(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // hands above head
     await animLoop(400, p => {
       drawAura(f.x,f.y,60,'#ffdd00',p*0.5,p*4);
       drawEnergyBall(f.x+10, f.y-50, 5+p*15, '#ffffaa','#ffaa00', p);
     });
     from.classList.remove('charging');
-    // fire beam
+    sfx.beam();
     await animLoop(450, p => {
       const reach = Math.min(p*2, 1);
       const ex = f.x + (t.x - f.x) * reach;
@@ -1096,7 +1337,7 @@ const attackAnims = {
 
   async armstretch(from, to) {
     const f = getPos(from), t = getPos(to);
-    // extend arm as a bar
+    sfx.punch();
     await animLoop(300, p => {
       const ex = f.x+40 + (t.x - f.x-40) * p;
       const ey = f.y + (t.y - f.y) * p;
@@ -1127,7 +1368,7 @@ const attackAnims = {
   async klon(from, to) {
     const f = getPos(from), t = getPos(to);
     // flash
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     await animLoop(300, p => {
       drawAura(f.x,f.y,60,'#44ff44', p, p*8);
     });
@@ -1148,7 +1389,7 @@ const attackAnims = {
   // -- FREEZER --
   async deathbeam(from, to) {
     const f = getPos(from), t = getPos(to);
-    // quick finger point
+    sfx.laserThin();
     await animLoop(200, p => {
       drawEnergyBall(f.x+40, f.y-15, 3+p*5, '#ff88ff','#8800aa', p);
     });
@@ -1165,7 +1406,7 @@ const attackAnims = {
 
   async deathball(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     const bx = f.x + 30, by = f.y - 60;
     // grow massive ball above finger
     await animLoop(800, p => {
@@ -1179,7 +1420,7 @@ const attackAnims = {
       }
     });
     from.classList.remove('charging');
-    // hurl at enemy
+    sfx.bigBeam();
     await animLoop(500, p => {
       const ease = p*p;
       const cx = bx + (t.x-bx)*ease;
@@ -1195,7 +1436,7 @@ const attackAnims = {
 
   async tailwhip(from, to) {
     const f = getPos(from), t = getPos(to);
-    // quick spin dash
+    sfx.punch();
     await animLoop(250, p => {
       from.style.transform = `translateX(${(t.x-f.x)*p*0.6}px) translateY(${(t.y-f.y)*p*0.6}px) scaleX(-1) rotate(${p*360}deg)`;
     });
@@ -1211,14 +1452,14 @@ const attackAnims = {
 
   async novastrike(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // envelop in aura
     await animLoop(500, p => {
       drawAura(f.x,f.y,90,'#aa44ff',p,p*8);
       drawEnergyBall(f.x,f.y,30+p*20, '#dd88ff','#6600cc', p*0.5);
     });
     from.classList.remove('charging');
-    // rocket dash through enemy
+    sfx.energyBall();
     await animLoop(350, p => {
       const ease = p < 0.5 ? 2*p*p : 1-2*(1-p)*(1-p);
       const cx = f.x + (t.x - f.x) * ease;
@@ -1248,12 +1489,13 @@ const attackAnims = {
   // -- CELL --
   async kamehameha_cell(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     await animLoop(500, p => {
       drawAura(f.x,f.y,70,'#44ddaa',p,p*5);
       drawEnergyBall(f.x+40, f.y, 6+p*14, '#88ffdd','#00aa66', p);
     });
     from.classList.remove('charging');
+    sfx.beam();
     await animLoop(500, p => {
       const reach = Math.min(p*1.8, 1);
       const ex = f.x + (t.x - f.x) * reach;
@@ -1266,7 +1508,7 @@ const attackAnims = {
 
   async solarkamehameha(from, to) {
     const f = getPos(from), t = getPos(to);
-    from.classList.add('charging');
+    from.classList.add('charging'); sfx.charge();
     // massive charge
     await animLoop(700, p => {
       drawAura(f.x,f.y,100,'#ffff44',p,p*6);
@@ -1274,7 +1516,7 @@ const attackAnims = {
       if (p > 0.5) flashScreen('#ffffcc');
     });
     from.classList.remove('charging');
-    // enormous beam
+    sfx.bigBeam();
     await animLoop(600, p => {
       const reach = Math.min(p*1.5, 1);
       const ex = f.x + (t.x - f.x) * reach;
@@ -1291,7 +1533,7 @@ const attackAnims = {
 
   async absorption(from, to) {
     const f = getPos(from), t = getPos(to);
-    // particles drain from enemy to cell
+    sfx.absorb();
     const particles = [];
     for (let i = 0; i < 20; i++) {
       particles.push({
@@ -1321,8 +1563,8 @@ const attackAnims = {
 
   async cellpunch(from, to) {
     const f = getPos(from), t = getPos(to);
-    // aura powered punch
-    from.classList.add('charging');
+    sfx.punch();
+    from.classList.add('charging'); sfx.charge();
     await animLoop(200, p => {
       drawAura(f.x,f.y,50,'#44ff44',p,p*6);
     });
@@ -1362,7 +1604,7 @@ function buildCharGrid() {
       <div class="name">${c.name}</div>
       <div class="stats">HP: ${c.hp}<br>Level: ${c.level}<br>Attacken: ${c.attacks.length}</div>
     `;
-    card.onclick = () => selectChar(c.id);
+    card.onclick = () => { sfx.menuSelect(); selectChar(c.id); };
     grid.appendChild(card);
   });
 }
@@ -1375,6 +1617,7 @@ function selectChar(id) {
 
 function startBattle() {
   if (!selectedChar) return;
+  sfx.menuConfirm();
   const player = characters.find(c => c.id === selectedChar);
   const enemies = characters.filter(c => c.id !== selectedChar);
   const enemy = enemies[Math.floor(Math.random() * enemies.length)];
@@ -1396,6 +1639,8 @@ function initBattle() {
   updateHpBar('enemy');
   document.getElementById('playerFighter').className = 'fighter player-fighter';
   document.getElementById('enemyFighter').className = 'fighter enemy-fighter';
+  sfx.battleAppear();
+  startBGM();
   showMessage(`Ein wildes ${enemyState.name} erscheint!`, () => showAttackMenu());
 }
 
@@ -1429,7 +1674,7 @@ function showAttackMenu() {
     const btn = document.createElement('button');
     btn.className = 'action-btn';
     btn.innerHTML = `${atk.name}<span class="atk-type">${atk.type} | ${atk.power} PWR</span>`;
-    btn.onclick = () => doAttack(true, i);
+    btn.onclick = () => { sfx.menuSelect(); doAttack(true, i); };
     menu.appendChild(btn);
   });
 }
@@ -1466,6 +1711,7 @@ async function doAttack(isPlayer, atkIndex) {
 
     // Apply hit/damage
     if (hit) {
+      sfx.hit();
       defenderEl.classList.add('damaged');
       await wait(400);
       defenderEl.classList.remove('damaged');
@@ -1478,6 +1724,7 @@ async function doAttack(isPlayer, atkIndex) {
         defender.currentHp = 0;
         updateHpBar(isPlayer ? 'enemy' : 'player');
         defenderEl.classList.add('fainted');
+        stopBGM();
         showMessage(`${defender.name} wurde besiegt${isPlayer ? '!' : '...'}`, () => {
           battleActive = false;
           showResult(isPlayer);
@@ -1489,6 +1736,7 @@ async function doAttack(isPlayer, atkIndex) {
         else showAttackMenu();
       });
     } else {
+      sfx.miss();
       showMessage(`${atk.name} ging daneben!`, () => {
         if (isPlayer) setTimeout(() => enemyTurn(), 500);
         else showAttackMenu();
@@ -1514,16 +1762,18 @@ function showResult(won) {
       title.textContent = 'SIEG!';
       title.style.color = '#ffd700';
       text.textContent = `${playerState.name} hat ${enemyState.name} besiegt!`;
+      sfx.victory();
     } else {
       sprite.innerHTML = sprites[enemyState.id];
       title.textContent = 'NIEDERLAGE...';
       title.style.color = '#ff4444';
       text.textContent = `${enemyState.name} war zu stark...`;
+      sfx.defeat();
     }
   }, 1000);
 }
 
-function resetGame() { selectedChar = null; showScreen('select-screen'); }
+function resetGame() { stopBGM(); selectedChar = null; showScreen('select-screen'); }
 
 window.addEventListener('resize', () => { if(canvas) initCanvas(); });
 </script>
